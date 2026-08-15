@@ -1,0 +1,162 @@
+export const STORE_NOTIFICATION_STORAGE_KEY = "mc-store-notifications";
+export const STORE_NOTIFICATION_READ_KEY = "mc-store-notifications-read";
+export const STORE_NOTIFICATION_HISTORY_KEY = "mc-store-notifications-history";
+
+import type { UserRole } from "@/types";
+
+export interface StoreNotificationSummary {
+  recentSalesCount: number;
+  lowStockCount: number;
+  lowStockNames: string[];
+  updatedAt: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  type: "sale" | "stock";
+  createdAt: string;
+  read: boolean;
+  role: UserRole;
+}
+
+export function summarizeStoreNotifications(
+  recentSalesCount: number,
+  lowStockItems: Array<{ name: string }>
+): StoreNotificationSummary {
+  return {
+    recentSalesCount,
+    lowStockCount: lowStockItems.length,
+    lowStockNames: lowStockItems.slice(0, 3).map((item) => item.name),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function readStoreNotificationSummary(): StoreNotificationSummary | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(STORE_NOTIFICATION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoreNotificationSummary;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function writeStoreNotificationSummary(summary: StoreNotificationSummary) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(STORE_NOTIFICATION_STORAGE_KEY, JSON.stringify(summary));
+  } catch {
+    // Ignore storage issues silently.
+  }
+}
+
+export function getStoreNotificationMessages(summary: StoreNotificationSummary) {
+  const messages: string[] = [];
+
+  if (summary.recentSalesCount > 0) {
+    messages.push(
+      summary.recentSalesCount === 1
+        ? "1 vente récente enregistrée."
+        : `${summary.recentSalesCount} ventes récentes enregistrées.`
+    );
+  }
+
+  if (summary.lowStockCount > 0) {
+    const names = summary.lowStockNames.length
+      ? summary.lowStockNames.join(", ")
+      : "certains produits";
+
+    messages.push(
+      summary.lowStockCount === 1
+        ? `Stock faible : ${names}.`
+        : `Stock faible : ${summary.lowStockCount} produits (${names}).`
+    );
+  }
+
+  return messages;
+}
+
+export function buildNotificationItems(summary: StoreNotificationSummary, role: UserRole = "ADMIN"): NotificationItem[] {
+  const items: NotificationItem[] = [];
+
+  if (summary.recentSalesCount > 0) {
+    items.push({
+      id: `sale-${summary.updatedAt}`,
+      title: "Vente",
+      message:
+        summary.recentSalesCount === 1
+          ? "1 vente récente a été enregistrée."
+          : `${summary.recentSalesCount} ventes récentes ont été enregistrées.`,
+      type: "sale",
+      createdAt: summary.updatedAt,
+      read: false,
+      role,
+    });
+  }
+
+  if (summary.lowStockCount > 0) {
+    const names = summary.lowStockNames.length ? summary.lowStockNames.join(", ") : "Plusieurs produits";
+    items.push({
+      id: `stock-${summary.updatedAt}`,
+      title: "Stock faible",
+      message:
+        summary.lowStockCount === 1
+          ? `Le produit ${names} est en stock faible.`
+          : `${summary.lowStockCount} produits sont en stock faible (${names}).`,
+      type: "stock",
+      createdAt: summary.updatedAt,
+      read: false,
+      role,
+    });
+  }
+
+  return items;
+}
+
+export function readNotificationItems(): NotificationItem[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(STORE_NOTIFICATION_HISTORY_KEY) || window.localStorage.getItem(STORE_NOTIFICATION_READ_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as NotificationItem[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeNotificationItems(items: NotificationItem[]) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(STORE_NOTIFICATION_HISTORY_KEY, JSON.stringify(items));
+    window.localStorage.setItem(STORE_NOTIFICATION_READ_KEY, JSON.stringify(items));
+  } catch {
+    // Ignore storage issues silently.
+  }
+}
+
+export function appendNotificationItems(role: UserRole, items: NotificationItem[]) {
+  if (typeof window === "undefined") return [] as NotificationItem[];
+
+  try {
+    const stored = readNotificationItems();
+    const merged = [...stored, ...items.filter((item) => item.role === role)];
+    const unique = merged.filter(
+      (item, index, arr) => arr.findIndex((entry) => entry.id === item.id) === index
+    );
+    const trimmed = unique.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 20);
+    writeNotificationItems(trimmed);
+    return trimmed;
+  } catch {
+    return [] as NotificationItem[];
+  }
+}
