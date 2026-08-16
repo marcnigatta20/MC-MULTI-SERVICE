@@ -1,10 +1,24 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
+
+type AutoSaveData = Record<string, unknown>;
 
 interface UseAutoSaveOptions {
-  initialData: Record<string, any>;
-  onSave: (data: Record<string, any>) => Promise<void>;
-  delay?: number; // milliseconds before saving after last change
-  storageKey?: string; // localStorage key for draft saving
+  initialData: AutoSaveData;
+  onSave: (data: AutoSaveData) => Promise<void>;
+  delay?: number;
+  storageKey?: string;
+}
+
+function readDraft(storageKey?: string): AutoSaveData | null {
+  if (!storageKey || typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(`draft_${storageKey}`);
+    return raw ? (JSON.parse(raw) as AutoSaveData) : null;
+  } catch (error) {
+    console.error("Failed to parse stored data:", error);
+    return null;
+  }
 }
 
 export function useAutoSave({
@@ -13,51 +27,65 @@ export function useAutoSave({
   delay = 2000,
   storageKey,
 }: UseAutoSaveOptions) {
-  const [data, setData] = useFormData(initialData, storageKey);
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  const isSavingRef = useRef(false);
+  const [data, setData] = useState<AutoSaveData>(() => readDraft(storageKey) ?? initialData);
+  const [isSaving, setIsSaving] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const save = useCallback(
-    async (dataToSave: Record<string, any>) => {
-      if (isSavingRef.current) return;
+    async (dataToSave: AutoSaveData) => {
+      if (isSaving) return;
 
-      isSavingRef.current = true;
+      setIsSaving(true);
       try {
         await onSave(dataToSave);
-        // Clear draft from localStorage on successful save
-        if (storageKey) {
-          localStorage.removeItem(`draft_${storageKey}`);
+        if (storageKey && typeof window !== "undefined") {
+          window.localStorage.removeItem(`draft_${storageKey}`);
         }
       } catch (error) {
-        console.error('Auto-save failed:', error);
+        console.error("Auto-save failed:", error);
       } finally {
-        isSavingRef.current = false;
+        setIsSaving(false);
       }
     },
-    [onSave, storageKey]
+    [isSaving, onSave, storageKey]
   );
 
   const handleChange = useCallback(
-    (updatedData: Record<string, any>) => {
+    (updatedData: AutoSaveData) => {
       setData(updatedData);
 
-      // Save draft to localStorage
-      if (storageKey) {
-        localStorage.setItem(`draft_${storageKey}`, JSON.stringify(updatedData));
+      if (storageKey && typeof window !== "undefined") {
+        window.localStorage.setItem(`draft_${storageKey}`, JSON.stringify(updatedData));
       }
 
-      // Clear previous timeout
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
 
-      // Set new timeout for auto-save
       timeoutRef.current = setTimeout(() => {
-        save(updatedData);
+        void save(updatedData);
       }, delay);
     },
-    [setData, save, delay, storageKey]
+    [delay, save, storageKey]
   );
+
+  const restoreDraft = useCallback(() => {
+    const draft = readDraft(storageKey);
+    if (!draft) return false;
+    setData(draft);
+    return true;
+  }, [storageKey]);
+
+  const clearDraft = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    if (storageKey && typeof window !== "undefined") {
+      window.localStorage.removeItem(`draft_${storageKey}`);
+    }
+  }, [storageKey]);
 
   useEffect(() => {
     return () => {
@@ -66,89 +94,49 @@ export function useAutoSave({
       }
     };
   }, []);
-
-  const restoreDraft = useCallback(() => {
-    if (storageKey) {
-      const draft = localStorage.getItem(`draft_${storageKey}`);
-      if (draft) {
-        try {
-          setData(JSON.parse(draft));
-          return true;
-        } catch (error) {
-          console.error('Failed to restore draft:', error);
-        }
-      }
-    }
-    return false;
-  }, [storageKey, setData]);
-
-  const clearDraft = useCallback(() => {
-    if (storageKey) {
-      localStorage.removeItem(`draft_${storageKey}`);
-    }
-  }, [storageKey]);
 
   return {
     data,
     handleChange,
     restoreDraft,
     clearDraft,
-    isSaving: isSavingRef.current,
+    isSaving,
   };
 }
 
-function useFormData(
-  initialData: Record<string, any>,
-  storageKey?: string
-): [Record<string, any>, (data: Record<string, any>) => void] {
-  const [data, setData] = React.useState(() => {
-    if (storageKey && typeof window !== 'undefined') {
-      const draft = localStorage.getItem(`draft_${storageKey}`);
-      if (draft) {
-        try {
-          return JSON.parse(draft);
-        } catch (error) {
-          console.error('Failed to parse stored data:', error);
-        }
-      }
-    }
-    return initialData;
-  });
-
-  return [data, setData];
-
-export function useAutoSaveFormField(
+export function useAutoSaveFormField<T>(
   fieldName: string,
-  initialValue: any,
-  onSave: (value: any) => Promise<void>,
+  initialValue: T,
+  onSave: (value: T) => Promise<void>,
   delay = 1000
 ) {
-  const [value, setValue] = React.useState(initialValue);
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  const isSavingRef = useRef(false);
+  const [value, setValue] = useState<T>(initialValue);
+  const [isSaving, setIsSaving] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleChange = useCallback(
-    (newValue: any) => {
+    (newValue: T) => {
       setValue(newValue);
 
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
 
-      timeoutRef.current = setTimeout(async () => {
-        if (isSavingRef.current) return;
-        isSavingRef.current = true;
+      timeoutRef.current = setTimeout(() => {
+        if (isSaving) return;
 
-        try {
-          await onSave(newValue);
-        } catch (error) {
-          console.error(`Failed to save field ${fieldName}:`, error);
-        } finally {
-          isSavingRef.current = false;
-        }
+        setIsSaving(true);
+
+        void onSave(newValue)
+          .catch((error) => {
+            console.error(`Failed to save field ${fieldName}:`, error);
+          })
+          .finally(() => {
+            setIsSaving(false);
+          });
       }, delay);
     },
-    [fieldName, onSave, delay]
+    [delay, fieldName, isSaving, onSave]
   );
 
   useEffect(() => {
@@ -159,5 +147,6 @@ export function useAutoSaveFormField(
     };
   }, []);
 
-  return [value, handleChange, isSavingRef.current] as const;
+  return [value, handleChange, isSaving] as const;
 }
+
