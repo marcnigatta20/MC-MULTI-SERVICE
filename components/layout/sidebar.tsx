@@ -228,6 +228,23 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const closeMenus = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target || target.closest("[data-profile-menu-button]") || target.closest("[data-notification-menu-button]")) {
+        return;
+      }
+
+      setShowProfileMenu(false);
+      setShowNotifications(false);
+    };
+
+    document.addEventListener("mousedown", closeMenus);
+    return () => document.removeEventListener("mousedown", closeMenus);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const updateNotificationCount = () => {
       try {
         const raw = window.localStorage.getItem(STORE_NOTIFICATION_STORAGE_KEY);
@@ -313,9 +330,9 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
 
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md">
-      <div className="flex h-14 items-center justify-between gap-3 px-4 sm:h-16 sm:px-6 lg:pl-72">
-        <div className="ml-10 lg:ml-0">
-          <h1 className="truncate text-base font-semibold text-white sm:text-lg md:text-xl">{title}</h1>
+      <div className="flex h-14 items-center justify-between gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6 lg:pl-72">
+        <div className="ml-10 max-w-[60%] sm:ml-0 sm:max-w-none">
+          <h1 className="truncate text-sm font-semibold text-white sm:text-base md:text-xl">{title}</h1>
           {subtitle && <p className="hidden sm:block text-sm text-zinc-500 truncate">{subtitle}</p>}
         </div>
 
@@ -324,12 +341,13 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
             <div className="relative">
               <button
                 type="button"
+                data-profile-menu-button="true"
                 onClick={() => {
                   setShowNotifications(false);
                   setShowProfileMenu((value) => !value);
                 }}
-                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 border-gold/70 bg-zinc-900 text-zinc-200 shadow-[0_0_0_1px_rgba(212,175,55,0.2)] transition hover:border-gold hover:scale-105 sm:h-11 sm:w-11"
-                aria-label="Profil utilisateur"
+                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 border-gold/70 bg-zinc-900 text-zinc-200 shadow-[0_0_0_1px_rgba(212,175,55,0.2)] transition hover:border-gold hover:scale-105 sm:h-10 sm:w-10 md:h-11 md:w-11"
+                aria-label={`Profil utilisateur ${profile.full_name}`}
                 title={profile.full_name}
               >
                 {profile.avatar_url ? (
@@ -363,6 +381,7 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
             <div className="relative">
               <button
                 type="button"
+                data-notification-menu-button="true"
                 onClick={() => {
                   setShowProfileMenu(false);
                   setShowNotifications((value) => !value);
