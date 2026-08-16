@@ -167,8 +167,9 @@ export function Sidebar({ profile }: { profile: Profile }) {
         }
 
         const parsed = JSON.parse(raw) as { lowStockCount?: number; recentSalesCount?: number };
-        const total = (parsed.lowStockCount ?? 0) + (parsed.recentSalesCount ?? 0);
-        setStoreAlertCount(total);
+        const lowStockCount = profile.role === "ADMIN" || profile.role === "CAISSIERE" ? (parsed.lowStockCount ?? 0) : 0;
+        const recentSalesCount = profile.role === "ADMIN" ? (parsed.recentSalesCount ?? 0) : 0;
+        setStoreAlertCount(lowStockCount + recentSalesCount);
       } catch {
         setStoreAlertCount(0);
       }
@@ -236,8 +237,9 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
         }
 
         const parsed = JSON.parse(raw) as { lowStockCount?: number; recentSalesCount?: number };
-        const total = (parsed.lowStockCount ?? 0) + (parsed.recentSalesCount ?? 0);
-        setNotificationCount(total);
+        const lowStockCount = currentRole === "ADMIN" || currentRole === "CAISSIERE" ? (parsed.lowStockCount ?? 0) : 0;
+        const recentSalesCount = currentRole === "ADMIN" ? (parsed.recentSalesCount ?? 0) : 0;
+        setNotificationCount(lowStockCount + recentSalesCount);
       } catch {
         setNotificationCount(0);
       }
@@ -311,14 +313,14 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
 
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md">
-      <div className="flex h-16 items-center justify-between gap-4 px-6 lg:pl-72">
-        <div className="ml-6 lg:ml-0">
-          <h1 className="text-lg md:text-xl font-semibold text-white truncate">{title}</h1>
+      <div className="flex h-14 items-center justify-between gap-3 px-4 sm:h-16 sm:px-6 lg:pl-72">
+        <div className="ml-10 lg:ml-0">
+          <h1 className="truncate text-base font-semibold text-white sm:text-lg md:text-xl">{title}</h1>
           {subtitle && <p className="hidden sm:block text-sm text-zinc-500 truncate">{subtitle}</p>}
         </div>
 
         {profile && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="relative">
               <button
                 type="button"
@@ -326,7 +328,7 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
                   setShowNotifications(false);
                   setShowProfileMenu((value) => !value);
                 }}
-                className="hidden sm:flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border-2 border-gold/70 bg-zinc-900 text-zinc-200 shadow-[0_0_0_1px_rgba(212,175,55,0.2)] transition hover:border-gold hover:scale-105"
+                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 border-gold/70 bg-zinc-900 text-zinc-200 shadow-[0_0_0_1px_rgba(212,175,55,0.2)] transition hover:border-gold hover:scale-105 sm:h-11 sm:w-11"
                 aria-label="Profil utilisateur"
                 title={profile.full_name}
               >
@@ -338,7 +340,7 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
               </button>
 
               {showProfileMenu && (
-                <div className="absolute right-0 top-12 z-50 w-52 rounded-xl border border-zinc-800 bg-zinc-950 p-2 shadow-2xl">
+                <div className="absolute right-0 top-12 z-50 w-44 rounded-xl border border-zinc-800 bg-zinc-950 p-2 shadow-2xl sm:w-52">
                   <Link
                     href={profile.role === "BARBER" ? "/barber/profile" : "/settings"}
                     onClick={() => setShowProfileMenu(false)}
@@ -365,7 +367,7 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
                   setShowProfileMenu(false);
                   setShowNotifications((value) => !value);
                 }}
-                className="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-200 transition hover:border-gold/60 hover:text-gold"
+                className="relative flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-200 transition hover:border-gold/60 hover:text-gold sm:h-10 sm:w-10"
                 aria-label="Notifications"
               >
                 <Bell className="h-4 w-4" />
@@ -377,7 +379,7 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 top-12 z-50 w-80 rounded-xl border border-zinc-800 bg-zinc-950 p-3 shadow-2xl">
+                <div className="absolute right-0 top-12 z-50 w-72 rounded-xl border border-zinc-800 bg-zinc-950 p-3 shadow-2xl sm:w-80">
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm font-medium text-white">{notificationTitle}</p>
                     {unreadCount > 0 && (

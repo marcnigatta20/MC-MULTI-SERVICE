@@ -138,10 +138,18 @@ export function getStoreNotificationMessages(summary: StoreNotificationSummary) 
   return messages;
 }
 
+export function isSaleNotificationVisibleForRole(role: UserRole): boolean {
+  return role === "ADMIN";
+}
+
+export function isStockNotificationVisibleForRole(role: UserRole): boolean {
+  return role === "ADMIN" || role === "CAISSIERE";
+}
+
 export function buildNotificationItems(summary: StoreNotificationSummary, role: UserRole = "ADMIN"): NotificationItem[] {
   const items: NotificationItem[] = [];
 
-  if (summary.recentSalesCount > 0) {
+  if (isSaleNotificationVisibleForRole(role) && summary.recentSalesCount > 0) {
     items.push({
       id: `sale-${summary.updatedAt}`,
       title: "Vente",
@@ -156,7 +164,7 @@ export function buildNotificationItems(summary: StoreNotificationSummary, role: 
     });
   }
 
-  if (summary.lowStockCount > 0) {
+  if (isStockNotificationVisibleForRole(role) && summary.lowStockCount > 0) {
     const names = summary.lowStockNames.length ? summary.lowStockNames.join(", ") : "Plusieurs produits";
     items.push({
       id: `stock-${summary.updatedAt}`,

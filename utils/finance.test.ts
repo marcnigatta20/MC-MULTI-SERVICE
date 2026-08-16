@@ -8,6 +8,8 @@ import {
   toCents,
   fromCents,
   getUserFacingErrorMessage,
+  getTodayISO,
+  toLocalDateISO,
 } from "@/lib/utils";
 import { canAccessRoute } from "@/lib/access";
 import { getReportTypeMeta } from "@/lib/report-types";
@@ -135,6 +137,16 @@ describe("paiement barber — validation montant", () => {
     const allowOverpayment = true;
     const allowed = payment <= balanceDue || allowOverpayment;
     expect(allowed).toBe(true);
+  });
+});
+
+describe("dates locales réelles", () => {
+  it("renvoie la date du jour selon le fuseau local plutôt que UTC", () => {
+    const today = new Date();
+    const expected = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    expect(getTodayISO()).toBe(expected);
+    expect(toLocalDateISO(today)).toBe(expected);
   });
 });
 

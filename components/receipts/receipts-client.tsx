@@ -3,8 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/loading";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { generateReceiptPDF, generateStoreReceiptPDF, downloadPDF } from "@/utils/pdf";
-import { Download, Receipt } from "lucide-react";
+import { generateReceiptPDF, generateStoreReceiptPDF, downloadPDF, printPDF } from "@/utils/pdf";
+import { Download, Printer, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import type { Transaction, StoreSale } from "@/types";
 
@@ -25,6 +25,12 @@ export function ReceiptsClient({
     const doc = generateStoreReceiptPDF(s);
     downloadPDF(doc, `recu-store-${s.receipt_number}.pdf`);
     toast.success("Reçu magasin généré.");
+  }
+
+  function handleStoreSalePrint(s: StoreSale) {
+    const doc = generateStoreReceiptPDF(s);
+    printPDF(doc, `recu-store-${s.receipt_number}.pdf`);
+    toast.success("Impression du reçu magasin lancée.");
   }
 
   if ((transactions.length === 0) && (storeSales.length === 0)) {
@@ -59,9 +65,14 @@ export function ReceiptsClient({
           </div>
           <p className="font-bold">{formatCurrency(Number(s.total_amount || 0))}</p>
           <p className="text-sm text-zinc-400">Vente boutique — {s.cashier?.full_name || '—'}</p>
-          <Button size="sm" variant="outline" className="w-full" onClick={() => handleStoreSaleDownload(s)}>
-            <Download className="h-4 w-4" /> Télécharger PDF
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button size="sm" variant="outline" className="w-full" onClick={() => handleStoreSaleDownload(s)}>
+              <Download className="h-4 w-4" /> PDF
+            </Button>
+            <Button size="sm" variant="default" className="w-full" onClick={() => handleStoreSalePrint(s)}>
+              <Printer className="h-4 w-4" /> Imprimer
+            </Button>
+          </div>
         </div>
       ))}
     </div>

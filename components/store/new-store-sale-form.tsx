@@ -11,7 +11,7 @@ import { createStoreSaleAction } from "@/lib/actions/store";
 import { formatCurrency } from "@/lib/utils";
 import { broadcastRealtimeUpdate } from "@/lib/realtime";
 import { notifyStoreSaleCreated } from "@/lib/notifications";
-import { downloadPDF, generateStoreReceiptPDF } from "@/utils/pdf";
+import { downloadPDF, generateStoreReceiptPDF, printPDF } from "@/utils/pdf";
 import type { CashRegister, Product, Profile } from "@/types";
 
 interface NewStoreSaleFormProps {
@@ -101,6 +101,7 @@ export function NewStoreSaleForm({
 
       const receiptDoc = generateStoreReceiptPDF(sale);
       downloadPDF(receiptDoc, `recu-store-${sale.receipt_number}.pdf`);
+      printPDF(receiptDoc, `recu-store-${sale.receipt_number}.pdf`);
       notifyStoreSaleCreated();
       broadcastRealtimeUpdate("store_sale");
 

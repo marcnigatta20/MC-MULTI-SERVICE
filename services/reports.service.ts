@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { EXPENSE_CATEGORY_LABELS, type ExpenseCategory } from "@/types";
 import type { ReportType } from "@/lib/report-types";
+import { toLocalDateISO } from "@/lib/utils";
 
 export type { ReportType } from "@/lib/report-types";
 
@@ -14,7 +15,7 @@ export type ReportPeriod =
 
 export function getDateRange(period: ReportPeriod, customFrom?: string, customTo?: string) {
   const now = new Date();
-  const today = now.toISOString().split("T")[0];
+  const today = toLocalDateISO(now);
 
   switch (period) {
     case "today":
@@ -22,27 +23,21 @@ export function getDateRange(period: ReportPeriod, customFrom?: string, customTo
     case "yesterday": {
       const d = new Date(now);
       d.setDate(d.getDate() - 1);
-      const y = d.toISOString().split("T")[0];
+      const y = toLocalDateISO(d);
       return { from: y, to: y };
     }
     case "week": {
       const d = new Date(now);
       d.setDate(d.getDate() - 6);
-      return { from: d.toISOString().split("T")[0], to: today };
+      return { from: toLocalDateISO(d), to: today };
     }
     case "month": {
-      const from = new Date(now.getFullYear(), now.getMonth(), 1)
-        .toISOString()
-        .split("T")[0];
+      const from = toLocalDateISO(new Date(now.getFullYear(), now.getMonth(), 1));
       return { from, to: today };
     }
     case "last_month": {
-      const from = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-        .toISOString()
-        .split("T")[0];
-      const to = new Date(now.getFullYear(), now.getMonth(), 0)
-        .toISOString()
-        .split("T")[0];
+      const from = toLocalDateISO(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+      const to = toLocalDateISO(new Date(now.getFullYear(), now.getMonth(), 0));
       return { from, to };
     }
     case "custom":
@@ -162,8 +157,8 @@ export async function getMonthlyEvolution(months = 6) {
   for (let i = months - 1; i >= 0; i--) {
     const d = new Date();
     d.setMonth(d.getMonth() - i);
-    const from = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
-    const to = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split("T")[0];
+    const from = toLocalDateISO(new Date(d.getFullYear(), d.getMonth(), 1));
+    const to = toLocalDateISO(new Date(d.getFullYear(), d.getMonth() + 1, 0));
     const label = d.toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
 
     const [{ data: txs }, { data: exps }] = await Promise.all([

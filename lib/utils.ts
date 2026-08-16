@@ -40,8 +40,15 @@ export function formatDateTime(date: string | Date): string {
   }).format(typeof date === "string" ? new Date(date) : date);
 }
 
+export function toLocalDateISO(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function getTodayISO(): string {
-  return new Date().toISOString().split("T")[0];
+  return toLocalDateISO(new Date());
 }
 
 export function getUserFacingErrorMessage(error: unknown): string {

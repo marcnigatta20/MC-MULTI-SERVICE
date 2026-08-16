@@ -12,6 +12,7 @@ import type {
 } from "@/types";
 import { getStockStatus } from "@/types";
 import { broadcastRealtimeUpdate } from "@/lib/realtime";
+import { toLocalDateISO } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
 
 const STORE_PATHS = [
@@ -63,7 +64,7 @@ function getWeekStartISO(): string {
   const day = d.getDay();
   const diff = day === 0 ? 6 : day - 1;
   d.setDate(d.getDate() - diff);
-  return d.toISOString().split("T")[0];
+  return toLocalDateISO(d);
 }
 
 function getMonthStartISO(): string {
@@ -672,7 +673,7 @@ export async function getStoreSaleById(id: string): Promise<StoreSale | null> {
 // ═══ DASHBOARD & REPORTS ═══
 export async function getStoreDashboardStats(): Promise<StoreDashboardStats> {
   const supabase = await createClient();
-  const today = new Date().toISOString().split("T")[0];
+  const today = toLocalDateISO(new Date());
   const weekStart = getWeekStartISO();
   const monthStart = getMonthStartISO();
 
@@ -808,7 +809,7 @@ export async function getStoreWeeklyRevenue() {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = toLocalDateISO(d);
     const { revenue } = await getStoreRevenueByPeriod(dateStr, dateStr);
     days.push({ date: dateStr, revenue });
   }

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { DashboardStats, BarberBalance } from "@/types";
-import { getTodayISO } from "@/lib/utils";
+import { getTodayISO, toLocalDateISO } from "@/lib/utils";
 
 export async function getDashboardStats(date?: string): Promise<DashboardStats> {
   const supabase = await createClient();
@@ -81,7 +81,7 @@ export async function getWeeklyRevenue(): Promise<
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = toLocalDateISO(d);
 
     const { data } = await supabase
       .from("transactions")
