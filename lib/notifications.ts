@@ -33,6 +33,61 @@ export function summarizeStoreNotifications(
   };
 }
 
+export function mergeStoreSaleNotification(
+  current: StoreNotificationSummary | null | undefined,
+  addedSales = 1
+): StoreNotificationSummary {
+  return {
+    recentSalesCount: Math.max(0, (current?.recentSalesCount ?? 0) + addedSales),
+    lowStockCount: current?.lowStockCount ?? 0,
+    lowStockNames: current?.lowStockNames ?? [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function playNotificationTone() {
+  if (typeof window === "undefined") return;
+
+  const AudioCtor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtor) return;
+
+  try {
+    const audioContext = new AudioCtor();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(620, audioContext.currentTime + 0.2);
+
+    gainNode.gain.setValueAtTime(0.0001, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.06, audioContext.currentTime + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.26);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.28);
+  } catch {
+    // Ignore browser audio issues silently.
+  }
+}
+
+export function notifyStoreSaleCreated() {
+  if (typeof window === "undefined") return;
+
+  try {
+    const raw = window.localStorage.getItem(STORE_NOTIFICATION_STORAGE_KEY);
+    const current = raw ? (JSON.parse(raw) as StoreNotificationSummary) : null;
+    const next = mergeStoreSaleNotification(current, 1);
+    window.localStorage.setItem(STORE_NOTIFICATION_STORAGE_KEY, JSON.stringify(next));
+    window.dispatchEvent(new StorageEvent("storage", { key: STORE_NOTIFICATION_STORAGE_KEY, newValue: JSON.stringify(next) }));
+    playNotificationTone();
+  } catch {
+    // Ignore storage issues silently.
+  }
+}
+
 export function readStoreNotificationSummary(): StoreNotificationSummary | null {
   if (typeof window === "undefined") return null;
 

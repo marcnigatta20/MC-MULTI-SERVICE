@@ -9,15 +9,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Wallet, Receipt, TrendingDown, DollarSign, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { calculateTheoreticalBalance } from "@/utils/finance";
 import type { CashRegister } from "@/types";
-import { openCashRegisterAction, closeCashRegisterAction } from "@/lib/actions/cashier";
+import {
+  openCashRegisterAction,
+  closeCashRegisterAction,
+  increaseCashRegisterAction,
+} from "@/lib/actions/cashier";
+import type { UserRole } from "@/types";
 
 interface CashClientProps {
   profileId: string;
+  profileRole: UserRole;
   openRegister: CashRegister | null;
   summary: {
     totalSales: number;
@@ -30,11 +45,14 @@ interface CashClientProps {
   } | null;
 }
 
-export function CashClient({ profileId, openRegister, summary }: CashClientProps) {
+export function CashClient({ profileId, profileRole, openRegister, summary }: CashClientProps) {
   const router = useRouter();
   const [openingBalance, setOpeningBalance] = useState("");
   const [closingBalance, setClosingBalance] = useState("");
   const [differenceExplanation, setDifferenceExplanation] = useState("");
+  const [cashTopUpAmount, setCashTopUpAmount] = useState("");
+  const [cashTopUpReason, setCashTopUpReason] = useState("");
+  const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const theoreticalBalance =
@@ -79,6 +97,33 @@ export function CashClient({ profileId, openRegister, summary }: CashClientProps
         differenceExplanation || undefined
       );
       toast.success("Caisse fermée");
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    }
+    setLoading(false);
+  }
+
+  async function handleIncreaseCashBalance() {
+    if (!openRegister) return;
+    const amount = Number(cashTopUpAmount);
+    if (!amount || amount <= 0) {
+      toast.error("Veuillez saisir un montant valide.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await increaseCashRegisterAction(
+        openRegister.id,
+        profileId,
+        amount,
+        cashTopUpReason || "Ajout manuel de fonds"
+      );
+      toast.success("Fond de caisse ajouté");
+      setCashTopUpAmount("");
+      setCashTopUpReason("");
+      setIsTopUpOpen(false);
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -139,6 +184,75 @@ export function CashClient({ profileId, openRegister, summary }: CashClientProps
         <StatCard title="Ventes total" value={summary?.totalSales || 0} icon={Receipt} />
         <StatCard title="Dépenses" value={summary?.totalExpenses || 0} icon={TrendingDown} variant="warning" />
       </div>
+
+      {profileRole === "ADMIN" && (
+        <Dialog open={isTopUpOpen} onOpenChange={setIsTopUpOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-fit px-3 py-1 text-sm flex items-center gap-2 border border-amber-400 text-amber-400 hover:bg-amber-500/10"
+              title="Ajouter des fonds (admin)"
+            >
+              <DollarSign className="h-4 w-4" />
+              Ajouter des fonds
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-amber-500/10 p-2">
+                  <DollarSign className="h-5 w-5 text-amber-400" />
+                </div>
+                <div>
+                  <DialogTitle>Augmenter la caisse</DialogTitle>
+                  <DialogDescription>
+                    Ajoutez un montant au fond de caisse sans fermer la caisse de la journée.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>Montant à ajouter (HTG)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={cashTopUpAmount}
+                  onChange={(e) => setCashTopUpAmount(e.target.value)}
+                  placeholder="2500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Motif</Label>
+                <Input
+                  value={cashTopUpReason}
+                  onChange={(e) => setCashTopUpReason(e.target.value)}
+                  placeholder="Dépôt / fonds supplémentaires"
+                />
+              </div>
+
+              <p className="text-xs text-zinc-500">L'opération est enregistrée dans l'historique d'audit.</p>
+            </div>
+
+            <DialogFooter>
+              <Button variant="secondary" onClick={() => setIsTopUpOpen(false)}>
+                Annuler
+              </Button>
+              <Button
+                onClick={handleIncreaseCashBalance}
+                disabled={loading || !cashTopUpAmount}
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                {loading ? "Validation..." : (
+                  <span className="flex items-center gap-2"><DollarSign className="h-4 w-4" />Confirmer</span>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         <Card>

@@ -1,0 +1,17 @@
+ALTER TABLE public.transactions
+  ADD COLUMN IF NOT EXISTS amount NUMERIC(12,2),
+  ADD COLUMN IF NOT EXISTS original_price NUMERIC(12,2),
+  ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(12,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS service_name TEXT,
+  ADD COLUMN IF NOT EXISTS commission_rate NUMERIC(5,2),
+  ADD COLUMN IF NOT EXISTS commission_amount NUMERIC(12,2),
+  ADD COLUMN IF NOT EXISTS shop_amount NUMERIC(12,2),
+  ADD COLUMN IF NOT EXISTS payment_method payment_method,
+  ADD COLUMN IF NOT EXISTS status transaction_status,
+  ADD COLUMN IF NOT EXISTS client_name TEXT,
+  ADD COLUMN IF NOT EXISTS notes TEXT,
+  ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS cancelled_by UUID,
+  ADD COLUMN IF NOT EXISTS cancellation_reason TEXT,
+  ADD COLUMN IF NOT EXISTS transaction_date DATE,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ;

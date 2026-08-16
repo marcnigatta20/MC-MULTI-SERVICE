@@ -18,6 +18,7 @@ export default async function CashPage() {
     >
       <CashClient
         profileId={profile.id}
+        profileRole={profile.role}
         openRegister={openRegister}
         summary={summary}
       />

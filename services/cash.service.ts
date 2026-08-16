@@ -76,6 +76,59 @@ export async function openCashRegister(
   return data as CashRegister;
 }
 
+export async function increaseCashRegisterBalance(
+  registerId: string,
+  userId: string,
+  amount: number,
+  reason?: string
+): Promise<CashRegister> {
+  const supabase = await createClient();
+
+  const { data: register } = await supabase
+    .from("cash_registers")
+    .select("*")
+    .eq("id", registerId)
+    .eq("status", "OPEN")
+    .single();
+
+  if (!register) {
+    throw new Error("Aucune caisse ouverte trouvée.");
+  }
+
+  const nextBalance = Number(register.opening_balance || 0) + Number(amount);
+
+  const { data, error } = await supabase
+    .from("cash_registers")
+    .update({
+      opening_balance: nextBalance,
+    })
+    .eq("id", registerId)
+    .select("*")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  await supabase.from("audit_logs").insert({
+    user_id: userId,
+    action: "CASH_INCREASED",
+    entity_type: "cash_register",
+    entity_id: registerId,
+    description: `Fonds ajoutés à la caisse : ${amount} HTG`,
+    details: {
+      amount,
+      reason: reason || "Augmentation manuelle du fond de caisse",
+      previous_balance: register.opening_balance,
+      new_balance: nextBalance,
+    },
+  });
+
+  revalidatePath("/cash");
+  revalidatePath("/cashier");
+  revalidatePath("/dashboard");
+
+  return data as CashRegister;
+}
+
 export async function closeCashRegister(
   registerId: string,
   cashierId: string,

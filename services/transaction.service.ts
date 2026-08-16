@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Transaction, PaymentMethod, Profile } from "@/types";
+import { broadcastRealtimeUpdate } from "@/lib/realtime";
 import { calculateCommissionBreakdown } from "@/utils/finance";
 import { revalidatePath } from "next/cache";
 
@@ -188,6 +189,9 @@ export async function createTransaction(input: {
       cash_register_id: input.cashRegisterId,
       amount: breakdown.totalAmount,
       original_price: breakdown.originalPrice,
+      service_price: breakdown.originalPrice,
+      total_amount: breakdown.totalAmount,
+      barber_commission: breakdown.commissionAmount,
       discount_amount: breakdown.discountAmount,
       service_name: service.name,
       commission_rate: breakdown.commissionRate,
@@ -196,11 +200,8 @@ export async function createTransaction(input: {
       payment_method: input.paymentMethod,
       client_name: input.clientName,
       notes: input.notes,
-      receipt_number: "",
     })
-    .select(
-      "*, barber:barbers(*), service:services(*)"
-    )
+    .select("*, barber:barbers(*), service:services(*)")
     .single();
 
   if (error) throw new Error(error.message);
@@ -238,6 +239,7 @@ export async function createTransaction(input: {
   revalidatePath("/commissions");
   revalidatePath("/performance");
   revalidatePath("/reports");
+  broadcastRealtimeUpdate("transaction");
 
   return created as Transaction;
 }
@@ -308,6 +310,7 @@ export async function cancelTransaction(
   revalidatePath("/commissions");
   revalidatePath("/performance");
   revalidatePath("/reports");
+  broadcastRealtimeUpdate("transaction_cancelled");
 
   return updated as Transaction;
 }

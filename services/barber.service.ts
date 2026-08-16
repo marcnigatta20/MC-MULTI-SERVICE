@@ -165,7 +165,6 @@ export async function createService(input: {
   name: string;
   description?: string;
   price: number;
-  durationMinutes?: number;
 }) {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -174,7 +173,6 @@ export async function createService(input: {
       name: input.name,
       description: input.description,
       price: input.price,
-      duration_minutes: input.durationMinutes || 30,
     })
     .select()
     .single();
@@ -185,7 +183,7 @@ export async function createService(input: {
 
 export async function updateService(
   id: string,
-  input: Partial<{ name: string; description: string; price: number; duration_minutes: number; is_active: boolean }>
+  input: Partial<{ name: string; description: string; price: number; is_active: boolean }>
 ) {
   const supabase = await createClient();
   const { data, error } = await supabase

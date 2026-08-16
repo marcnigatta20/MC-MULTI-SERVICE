@@ -1,0 +1,13 @@
+{
+  amount: breakdown.totalAmount,
+  original_price: breakdown.originalPrice,
+  service_price: breakdown.originalPrice,
+  total_amount: breakdown.totalAmount,
+  discount_amount: breakdown.discountAmount,
+  commission_rate: breakdown.commissionRate,
+  commission_amount: breakdown.commissionAmount,
+  shop_amount: breakdown.shopAmount,
+  payment_method: input.paymentMethod,
+  client_name: input.clientName,
+  notes: input.notes,
+}

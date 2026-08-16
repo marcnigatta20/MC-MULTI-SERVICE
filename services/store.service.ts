@@ -11,6 +11,7 @@ import type {
   Profile,
 } from "@/types";
 import { getStockStatus } from "@/types";
+import { broadcastRealtimeUpdate } from "@/lib/realtime";
 import { revalidatePath } from "next/cache";
 
 const STORE_PATHS = [
@@ -566,6 +567,7 @@ export async function createStoreSale(input: {
   if (!sale) throw new Error("Vente créée mais introuvable.");
 
   revalidateStore();
+  broadcastRealtimeUpdate("store_sale");
   return sale;
 }
 
@@ -585,6 +587,7 @@ export async function cancelStoreSale(
   const sale = await getStoreSaleById(saleId);
   if (!sale) throw new Error("Vente introuvable.");
   revalidateStore();
+  broadcastRealtimeUpdate("store_sale_cancelled");
   return sale;
 }
 

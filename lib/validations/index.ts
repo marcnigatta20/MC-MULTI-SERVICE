@@ -38,7 +38,6 @@ export const serviceSchema = z.object({
   name: z.string().min(2, "Nom requis"),
   description: z.string().optional(),
   price: positiveAmount,
-  durationMinutes: z.number().positive().optional(),
 });
 
 export const expenseSchema = z.object({
@@ -68,6 +67,11 @@ export const cashCloseSchema = z.object({
   closingBalance: nonNegativeAmount,
   differenceExplanation: z.string().optional(),
   notes: z.string().optional(),
+});
+
+export const cashIncreaseSchema = z.object({
+  amount: positiveAmount,
+  reason: z.string().min(3, "La raison est requise").optional(),
 });
 
 export const productSchema = z.object({

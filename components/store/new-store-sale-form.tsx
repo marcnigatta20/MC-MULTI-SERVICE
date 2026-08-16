@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createStoreSaleAction } from "@/lib/actions/store";
 import { formatCurrency } from "@/lib/utils";
+import { broadcastRealtimeUpdate } from "@/lib/realtime";
+import { notifyStoreSaleCreated } from "@/lib/notifications";
+import { downloadPDF, generateStoreReceiptPDF } from "@/utils/pdf";
 import type { CashRegister, Product, Profile } from "@/types";
 
 interface NewStoreSaleFormProps {
@@ -88,7 +91,7 @@ export function NewStoreSaleForm({
     setLoading(true);
 
     try {
-      await createStoreSaleAction({
+      const sale = await createStoreSaleAction({
         cashierId: profile.id,
         cashRegisterId: openRegister.id,
         paymentMethod,
@@ -96,7 +99,13 @@ export function NewStoreSaleForm({
         items,
       });
 
+      const receiptDoc = generateStoreReceiptPDF(sale);
+      downloadPDF(receiptDoc, `recu-store-${sale.receipt_number}.pdf`);
+      notifyStoreSaleCreated();
+      broadcastRealtimeUpdate("store_sale");
+
       toast.success("Vente Store enregistrée.");
+      toast.success(`Reçu téléchargé — ${sale.receipt_number}`);
       toast.info(`Nouvelle vente validée — ${formatCurrency(total)}`);
       setSelectedQuantities({});
       setDiscount("0");

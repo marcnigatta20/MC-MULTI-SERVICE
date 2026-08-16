@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -57,13 +57,24 @@ export function StoreDashboardClient({
     setPersistedSummary(readStoreNotificationSummary());
   }, []);
 
-  const liveSummary = summarizeStoreNotifications(recentSales.length, lowStock);
+  const liveSummary = useMemo(
+    () => summarizeStoreNotifications(recentSales.length, lowStock),
+    [recentSales.length, lowStock]
+  );
+
   const effectiveSummary = persistedSummary && persistedSummary.updatedAt > liveSummary.updatedAt ? persistedSummary : liveSummary;
-  const notifications = getStoreNotificationMessages(effectiveSummary);
+  const notifications = useMemo(() => getStoreNotificationMessages(effectiveSummary), [effectiveSummary]);
 
   useEffect(() => {
+    if (!liveSummary) return;
+
     writeStoreNotificationSummary(liveSummary);
-    setPersistedSummary(liveSummary);
+    setPersistedSummary((current) => {
+      if (current && current.updatedAt >= liveSummary.updatedAt) {
+        return current;
+      }
+      return liveSummary;
+    });
 
     if (lowStock.length > 0) {
       const hasLowStockAlert = sessionStorage.getItem("mc-store-low-stock-alert") !== "shown";

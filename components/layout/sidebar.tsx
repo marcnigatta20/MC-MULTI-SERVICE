@@ -145,12 +145,6 @@ function SidebarNav({
           <p className="truncate text-sm font-medium text-white">{profile.full_name}</p>
           <p className="text-xs text-zinc-500">{ROLE_LABELS[profile.role]}</p>
         </div>
-        <form action={signOut}>
-          <Button type="submit" variant="ghost" className="w-full justify-start">
-            <LogOut className="h-4 w-4" />
-            Déconnexion
-          </Button>
-        </form>
       </div>
     </>
   );

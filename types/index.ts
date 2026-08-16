@@ -80,6 +80,8 @@ export interface Transaction {
   cash_register_id?: string | null;
   amount: number;
   original_price?: number | null;
+  service_price?: number | null;
+  total_amount?: number | null;
   discount_amount?: number | null;
   service_name?: string | null;
   commission_rate: number;

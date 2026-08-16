@@ -1,9 +1,18 @@
 "use server";
 
-import { openCashRegister, closeCashRegister } from "@/services/cash.service";
+import {
+  openCashRegister,
+  closeCashRegister,
+  increaseCashRegisterBalance,
+} from "@/services/cash.service";
 import { createTransaction } from "@/services/transaction.service";
 import { assertCashierOrAdmin } from "@/lib/permissions";
-import { saleSchema, cashOpenSchema, cashCloseSchema } from "@/lib/validations";
+import {
+  saleSchema,
+  cashOpenSchema,
+  cashCloseSchema,
+  cashIncreaseSchema,
+} from "@/lib/validations";
 import { parseOrThrow } from "@/lib/validate";
 import type { PaymentMethod } from "@/types";
 
@@ -12,6 +21,21 @@ export async function openCashRegisterAction(cashierId: string, openingBalance: 
   if (profile.id !== cashierId) throw new Error("Accès refusé.");
   const data = parseOrThrow(cashOpenSchema, { openingBalance });
   return openCashRegister(cashierId, data.openingBalance);
+}
+
+export async function increaseCashRegisterAction(
+  registerId: string,
+  userId: string,
+  amount: number,
+  reason?: string
+) {
+  const profile = await assertCashierOrAdmin();
+  if (profile.id !== userId && profile.role !== "ADMIN") {
+    throw new Error("Accès refusé.");
+  }
+
+  const data = parseOrThrow(cashIncreaseSchema, { amount, reason });
+  return increaseCashRegisterBalance(registerId, userId, data.amount, data.reason);
 }
 
 export async function closeCashRegisterAction(

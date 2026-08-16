@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ export function BarbersClient({
   profiles: Profile[];
 }) {
   const router = useRouter();
+  const [barberList, setBarberList] = useState<BarberBalance[]>(barbers);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,11 +40,15 @@ export function BarbersClient({
     userId: "",
   });
 
+  useEffect(() => {
+    setBarberList(barbers);
+  }, [barbers]);
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
-      await createBarberAction({
+      const created = await createBarberAction({
         firstName: form.firstName,
         lastName: form.lastName,
         phone: form.phone || undefined,
@@ -51,6 +56,27 @@ export function BarbersClient({
         commissionRate: parseFloat(form.commissionRate),
         userId: form.userId || undefined,
       });
+      setBarberList((current) => [
+        {
+          barber_id: created.id,
+          full_name: created.full_name,
+          first_name: created.first_name ?? null,
+          last_name: created.last_name ?? null,
+          email: created.email ?? null,
+          phone: created.phone ?? null,
+          photo_url: created.photo_url ?? null,
+          commission_rate: Number(created.commission_rate ?? 0),
+          is_active: created.is_active ?? true,
+          created_at: created.created_at,
+          user_id: created.user_id ?? null,
+          total_revenue: 0,
+          service_count: 0,
+          total_commissions: 0,
+          total_paid: 0,
+          balance_due: 0,
+        },
+        ...current,
+      ]);
       toast.success("Barber créé");
       setOpen(false);
       setForm({ firstName: "", lastName: "", phone: "", email: "", commissionRate: "40", userId: "" });
@@ -66,7 +92,7 @@ export function BarbersClient({
     if (!editId) return;
     setLoading(true);
     try {
-      await updateBarberAction(editId, {
+      const updated = await updateBarberAction(editId, {
         first_name: form.firstName,
         last_name: form.lastName,
         phone: form.phone,
@@ -74,6 +100,22 @@ export function BarbersClient({
         commission_rate: parseFloat(form.commissionRate),
         user_id: form.userId || null,
       });
+      setBarberList((current) =>
+        current.map((barber) =>
+          barber.barber_id === editId
+            ? {
+                ...barber,
+                full_name: updated.full_name ?? barber.full_name,
+                first_name: updated.first_name ?? barber.first_name,
+                last_name: updated.last_name ?? barber.last_name,
+                email: updated.email ?? barber.email,
+                phone: updated.phone ?? barber.phone,
+                commission_rate: Number(updated.commission_rate ?? barber.commission_rate),
+                is_active: updated.is_active ?? barber.is_active,
+              }
+            : barber
+        )
+      );
       toast.success("Barber mis à jour");
       setEditId(null);
       router.refresh();
@@ -97,7 +139,14 @@ export function BarbersClient({
 
   async function toggleActive(barber: BarberBalance) {
     try {
-      await updateBarberAction(barber.barber_id, { is_active: !barber.is_active });
+      const updated = await updateBarberAction(barber.barber_id, { is_active: !barber.is_active });
+      setBarberList((current) =>
+        current.map((item) =>
+          item.barber_id === barber.barber_id
+            ? { ...item, is_active: updated.is_active ?? item.is_active }
+            : item
+        )
+      );
       toast.success(barber.is_active ? "Barber désactivé" : "Barber activé");
       router.refresh();
     } catch (e) {
@@ -156,7 +205,7 @@ export function BarbersClient({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {barbers.map((b) => {
+          {barberList.map((b) => {
             const isActive = Boolean(b.is_active);
 
             return (

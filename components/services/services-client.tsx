@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,25 +15,30 @@ import { createServiceAction, updateServiceAction } from "@/lib/actions/admin";
 
 export function ServicesClient({ services }: { services: Service[] }) {
   const router = useRouter();
+  const [serviceList, setServiceList] = useState<Service[]>(services);
   const [open, setOpen] = useState(false);
   const [editService, setEditService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", price: "", duration: "" });
+  const [form, setForm] = useState({ name: "", description: "", price: "" });
+
+  useEffect(() => {
+    setServiceList(services);
+  }, [services]);
 
   function resetForm() {
-    setForm({ name: "", description: "", price: "", duration: "30" });
+    setForm({ name: "", description: "", price: "" });
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
-      await createServiceAction({
+      const created = await createServiceAction({
         name: form.name,
         description: form.description || undefined,
         price: parseFloat(form.price),
-        durationMinutes: form.duration ? parseInt(form.duration) : undefined,
       });
+      setServiceList((current) => [created, ...current]);
       toast.success("Service créé");
       setOpen(false);
       resetForm();
@@ -49,12 +54,14 @@ export function ServicesClient({ services }: { services: Service[] }) {
     if (!editService) return;
     setLoading(true);
     try {
-      await updateServiceAction(editService.id, {
+      const updated = await updateServiceAction(editService.id, {
         name: form.name,
         description: form.description,
         price: parseFloat(form.price),
-        duration_minutes: form.duration ? parseInt(form.duration) : undefined,
       });
+      setServiceList((current) =>
+        current.map((service) => (service.id === updated.id ? updated : service))
+      );
       toast.success("Service mis à jour — les transactions passées conservent leur prix historique");
       setEditService(null);
       router.refresh();
@@ -66,7 +73,10 @@ export function ServicesClient({ services }: { services: Service[] }) {
 
   async function toggleActive(service: Service) {
     try {
-      await updateServiceAction(service.id, { is_active: !service.is_active });
+      const updated = await updateServiceAction(service.id, { is_active: !service.is_active });
+      setServiceList((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item))
+      );
       toast.success(service.is_active ? "Service désactivé" : "Service activé");
       router.refresh();
     } catch (e) {
@@ -116,18 +126,16 @@ export function ServicesClient({ services }: { services: Service[] }) {
           <TableRow>
             <TableHead>Service</TableHead>
             <TableHead>Description</TableHead>
-            <TableHead>Durée</TableHead>
             <TableHead>Prix</TableHead>
             <TableHead>Statut</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {services.map((s) => (
+          {serviceList.map((s) => (
             <TableRow key={s.id}>
               <TableCell className="font-medium">{s.name}</TableCell>
               <TableCell className="text-zinc-400">{s.description || "—"}</TableCell>
-              <TableCell>{s.duration_minutes ? `${s.duration_minutes} min` : "—"}</TableCell>
               <TableCell className="text-gold">{formatCurrency(s.price)}</TableCell>
               <TableCell>
                 <Badge variant={s.is_active ? "success" : "secondary"}>
@@ -145,7 +153,6 @@ export function ServicesClient({ services }: { services: Service[] }) {
                         name: s.name,
                         description: s.description || "",
                         price: String(s.price),
-                        duration: s.duration_minutes ? String(s.duration_minutes) : "",
                       });
                     }}
                   >

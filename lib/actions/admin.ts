@@ -86,14 +86,12 @@ export async function createServiceAction(input: {
   name: string;
   description?: string;
   price: number;
-  durationMinutes?: number;
 }) {
   await assertAdmin();
   const data = parseOrThrow(serviceSchema, {
     name: input.name,
     description: input.description,
     price: input.price,
-    durationMinutes: input.durationMinutes,
   });
   return createService(data);
 }
@@ -104,7 +102,6 @@ export async function updateServiceAction(
     name?: string;
     description?: string;
     price?: number;
-    duration_minutes?: number;
     is_active?: boolean;
   }
 ) {
