@@ -15,6 +15,7 @@ import { Plus } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { PAYMENT_METHOD_LABELS, type Barber, type BarberPayment, type BarberBalance } from "@/types";
 import { createBarberPaymentAction } from "@/lib/actions/admin";
+import { useRealtimeTable } from "@/lib/hooks/use-realtime-table";
 
 export function PaymentsClient({
   barbers,
@@ -28,6 +29,7 @@ export function PaymentsClient({
   userId: string;
 }) {
   const router = useRouter();
+  useRealtimeTable();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({

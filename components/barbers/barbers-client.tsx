@@ -18,6 +18,7 @@ import { Plus, Pencil } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { BarberBalance, Profile } from "@/types";
 import { createBarberAction, updateBarberAction } from "@/lib/actions/admin";
+import { useRealtimeTable } from "@/lib/hooks/use-realtime-table";
 
 export function BarbersClient({
   barbers,
@@ -27,6 +28,7 @@ export function BarbersClient({
   profiles: Profile[];
 }) {
   const router = useRouter();
+  useRealtimeTable();
   const [barberList, setBarberList] = useState<BarberBalance[]>(barbers);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);

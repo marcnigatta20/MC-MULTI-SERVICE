@@ -12,9 +12,11 @@ import { Plus, Pencil } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import type { Service } from "@/types";
 import { createServiceAction, updateServiceAction } from "@/lib/actions/admin";
+import { useRealtimeTable } from "@/lib/hooks/use-realtime-table";
 
 export function ServicesClient({ services }: { services: Service[] }) {
   const router = useRouter();
+  useRealtimeTable();
   const [serviceList, setServiceList] = useState<Service[]>(services);
   const [open, setOpen] = useState(false);
   const [editService, setEditService] = useState<Service | null>(null);

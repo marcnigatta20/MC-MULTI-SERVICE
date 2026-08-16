@@ -17,6 +17,7 @@ import {
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Wallet, Receipt, TrendingDown, DollarSign } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { useRealtimeTable } from "@/lib/hooks/use-realtime-table";
 import { PAYMENT_METHOD_LABELS, type Barber, type Service, type CashRegister } from "@/types";
 import {
   openCashRegisterAction,
@@ -56,6 +57,10 @@ export function CashierClient({
   todayTransactions,
 }: CashierClientProps) {
   const router = useRouter();
+  useRealtimeTable({
+    source: ["transaction", "transaction_cancelled"],
+    refreshOnChange: true,
+  });
   const [openingBalance, setOpeningBalance] = useState("");
   const [closingBalance, setClosingBalance] = useState("");
   const [loading, setLoading] = useState(false);
@@ -229,7 +234,7 @@ export function CashierClient({
               </div>
 
               {selectedService && (
-                <div className="rounded-2xl border border-gold/30 bg-gradient-to-r from-gold/10 to-emerald-500/5 p-5 text-center shadow-inner shadow-gold/10">
+                <div className="rounded-2xl border border-gold/30 bg-linear-to-r from-gold/10 to-emerald-500/5 p-5 text-center shadow-inner shadow-gold/10">
                   <p className="text-sm text-zinc-400">Montant à enregistrer</p>
                   <p className="mt-2 text-3xl font-bold text-gold">
                     {formatCurrency(selectedService.price)}

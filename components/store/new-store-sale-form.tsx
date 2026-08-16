@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { createStoreSaleAction } from "@/lib/actions/store";
 import { formatCurrency } from "@/lib/utils";
 import { broadcastRealtimeUpdate } from "@/lib/realtime";
+import { useRealtimeTable } from "@/lib/hooks/use-realtime-table";
 import { notifyStoreSaleCreated } from "@/lib/notifications";
 import { downloadPDF, generateStoreReceiptPDF, printPDF } from "@/utils/pdf";
 import type { CashRegister, Product, Profile } from "@/types";
@@ -26,6 +27,10 @@ export function NewStoreSaleForm({
   openRegister,
 }: NewStoreSaleFormProps) {
   const router = useRouter();
+  useRealtimeTable({
+    source: ["store_sale", "store_sale_cancelled"],
+    refreshOnChange: true,
+  });
   const [selectedQuantities, setSelectedQuantities] = useState<Record<string, number>>({});
   const [paymentMethod, setPaymentMethod] = useState<"ESPECES" | "AUTRE_COMPTOIR">("ESPECES");
   const [discount, setDiscount] = useState("0");

@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
-    ,"migrate:viewport":"node ./scripts/migrate-viewport.js"
+    "test:watch": "vitest",
+    "migrate:viewport": "node ./scripts/migrate-viewport.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
