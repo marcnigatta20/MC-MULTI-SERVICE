@@ -1,31 +1,33 @@
 import { AppShell, requireAuth } from "@/lib/auth";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
-import {
-  getDashboardStats,
-  getWeeklyRevenue,
-  getTopBarbers,
-  getBarberBalances,
-} from "@/services/dashboard.service";
 import { getTransactions } from "@/services/transaction.service";
-import { getTodayISO } from "@/lib/utils";
+import { getStoreSales } from "@/services/store.service";
+import { getStoreDashboardStats } from "@/services/store.service";
+import { getDashboardStats } from "@/services/dashboard.service";
+import { generateHourlyData } from "@/lib/utils/hourly-data";
+import { toLocalDateISO } from "@/lib/utils";
 
 export default async function DashboardPage() {
   const profile = await requireAuth(["ADMIN"]);
 
-  const [stats, weeklyData, topBarbers, barberBalances, recentTransactions] =
-    await Promise.all([
-      getDashboardStats(),
-      getWeeklyRevenue(),
-      getTopBarbers(),
-      getBarberBalances(),
-      getTransactions({ date: getTodayISO(), limit: 10 }),
-    ]);
+  const today = toLocalDateISO(new Date());
+
+  const [barberTransactions, storeSales, storeStats, dashboardStats] = await Promise.all([
+    getTransactions({ date: today, limit: 50 }),
+    getStoreSales({ limit: 50 }),
+    getStoreDashboardStats(),
+    getDashboardStats(today),
+  ]);
+
+  const totalRevenue = dashboardStats.totalRevenueToday || 0;
+  const totalSales = dashboardStats.transactionCount + dashboardStats.storeSaleCount;
+  const hourlyData = generateHourlyData(totalRevenue, totalSales);
 
   return (
     <AppShell
       profile={profile}
       title="Tableau de bord"
-      subtitle={`Aperçu financier — ${new Date().toLocaleDateString("fr-FR", {
+      subtitle={`Tickets et revenus — ${new Date().toLocaleDateString("fr-FR", {
         weekday: "long",
         day: "numeric",
         month: "long",
@@ -33,11 +35,12 @@ export default async function DashboardPage() {
       })}`}
     >
       <DashboardClient
-        stats={stats}
-        weeklyData={weeklyData}
-        topBarbers={topBarbers}
-        barberBalances={barberBalances}
-        recentTransactions={recentTransactions}
+        barberTransactions={barberTransactions}
+        storeSales={storeSales}
+        marginToday={storeStats.estimatedProfitToday}
+        hourlyData={hourlyData}
+        totalRevenue={totalRevenue}
+        totalSales={totalSales}
       />
     </AppShell>
   );

@@ -21,32 +21,11 @@ const MC_MULTI_SERVICE_LOGO_URL =
 
 export function ReceiptView({ transaction, onClose }: ReceiptViewProps) {
   const [printerStatus, setPrinterStatus] = useState(DEFAULT_PRINTER_STATUS);
-  const [printerName, setPrinterName] = useState<string | null>(null);
-  const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
-  const [thermalMode, setThermalMode] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const savedPrinter = window.localStorage.getItem(STORAGE_KEY);
-    if (savedPrinter) {
-      setPrinterName(savedPrinter);
-      setPrinterStatus(`Connectée — ${savedPrinter}`);
-    }
+    setPrinterStatus("Prêt à imprimer");
   }, []);
-
-  useEffect(() => {
-    if (!autoPrintEnabled || !printerName || typeof window === "undefined" || !window.print) {
-      return;
-    }
-
-    setPrinterStatus(`Impression automatique activée sur ${printerName}`);
-    const timer = window.setTimeout(() => {
-      window.print();
-    }, 250);
-
-    return () => window.clearTimeout(timer);
-  }, [autoPrintEnabled, printerName]);
 
   const serviceName =
     transaction.service_name || transaction.service?.name || "—";
@@ -57,52 +36,8 @@ export function ReceiptView({ transaction, onClose }: ReceiptViewProps) {
   const date = transaction.created_at ? new Date(transaction.created_at) : new Date();
   const receiptNumber = (transaction.receipt_number || "").toString();
 
-  function saveSelectedPrinter(selected: string) {
-    setPrinterName(selected);
-    setPrinterStatus(`Connectée — ${selected}`);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, selected);
-    }
-  }
-
-  function handleConnectPrinter() {
-    if (typeof window === "undefined" || !window.print) {
-      setPrinterStatus("Le navigateur ne prend pas en charge l’impression locale.");
-      return;
-    }
-
-    const availablePrinters = ["MC Thermal Printer", "POS-80", "Imprimante caisse"];
-    const selected = printerName ?? availablePrinters[0] ?? "Imprimante locale";
-
-    saveSelectedPrinter(selected);
-
-    if (autoPrintEnabled) {
-      setPrinterStatus(`Impression automatique sur ${selected}`);
-      setTimeout(() => window.print(), 150);
-    }
-  }
-
-  function handlePrint() {
-    if (typeof window === "undefined" || !window.print) {
-      setPrinterStatus("Le navigateur ne prend pas en charge l’impression locale.");
-      return;
-    }
-
-    if (printerName) {
-      setPrinterStatus(`Impression en cours sur ${printerName}`);
-    } else {
-      setPrinterStatus("Boîte d’impression ouverte — sélectionnez votre imprimante.");
-    }
-
-    window.print();
-  }
-
   function handleValidateAndPrint() {
-    if (printerName) {
-      setPrinterStatus(`Validation et impression sur ${printerName}`);
-    } else {
-      setPrinterStatus("Validation et impression — choisissez votre imprimante");
-    }
+    setPrinterStatus("Validation et impression en cours...");
 
     if (typeof window !== "undefined" && window.print) {
       setTimeout(() => window.print(), 150);
@@ -116,12 +51,7 @@ export function ReceiptView({ transaction, onClose }: ReceiptViewProps) {
 
   return (
     <>
-      <div
-        className={[
-          "receipt-print mx-auto max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 text-black shadow-[0_18px_45px_rgba(0,0,0,0.12)]",
-          thermalMode ? "receipt-thermal" : "",
-        ].join(" ")}
-      >
+      <div className="receipt-print mx-auto w-[58mm] rounded-[8px] border border-zinc-200 bg-white p-3 text-black shadow-[0_18px_45px_rgba(0,0,0,0.12)] receipt-thermal">
         <div className="rounded-t-xl bg-black px-4 pb-4 pt-5 text-center text-gold">
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg border border-zinc-700 bg-black shadow-sm">
             <img
@@ -204,47 +134,16 @@ export function ReceiptView({ transaction, onClose }: ReceiptViewProps) {
           {printerStatus}
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <Button onClick={() => saveSelectedPrinter("MC Thermal Printer")} variant="outline" size="sm">
-            Enregistrer l’imprimante
-          </Button>
-          <Button
-            onClick={() => setAutoPrintEnabled((value) => !value)}
-            variant={autoPrintEnabled ? "default" : "secondary"}
-            size="sm"
-          >
-            {autoPrintEnabled ? "Auto-print ON" : "Auto-print OFF"}
-          </Button>
-          <Button onClick={() => setThermalMode((value) => !value)} variant="ghost" size="sm">
-            {thermalMode ? "Ticket thermique" : "Ticket standard"}
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-3">
-          <Button onClick={handleValidateAndPrint} className="bg-gold text-black hover:bg-gold/90">
-            <Printer className="h-4 w-4" /> Valider et imprimer
-          </Button>
-          <Button onClick={handleConnectPrinter} variant="outline">
-            <Printer className="h-4 w-4" /> Connecter l’imprimante
-          </Button>
-          <Button onClick={handlePrint} variant="secondary">
-            <Printer className="h-4 w-4" /> Imprimer
-          </Button>
-          <Button onClick={handleDownload}>
-            <Download className="h-4 w-4" /> Télécharger PDF
-          </Button>
-          {onClose && (
-            <Button variant="secondary" onClick={onClose}>
-              Nouvelle vente
-            </Button>
-          )}
-        </div>
+        <Button onClick={handleValidateAndPrint} className="bg-gold text-black hover:bg-gold/90">
+          <Printer className="h-4 w-4" /> Valider et imprimer
+        </Button>
       </div>
 
       <style jsx global>{`
         .receipt-thermal {
-          max-width: 320px;
-          padding: 14px;
+          max-width: 58mm;
+          width: 58mm;
+          padding: 8px;
           border-radius: 8px;
         }
 
@@ -279,7 +178,7 @@ export function ReceiptView({ transaction, onClose }: ReceiptViewProps) {
             position: absolute;
             left: 0;
             top: 0;
-            width: 100%;
+            width: 58mm;
             border: none;
             box-shadow: none;
           }

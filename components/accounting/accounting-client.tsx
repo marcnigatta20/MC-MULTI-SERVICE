@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { KPIChart } from "@/components/dashboard/kpi-chart";
 import {
   DollarSign,
   Users,
@@ -46,6 +47,13 @@ interface AccountingClientProps {
   expenses: Expense[];
   payments: BarberPayment[];
   transactions: Transaction[];
+  hourlyData?: Array<{
+    hour: string;
+    revenue: number;
+    sales: number;
+  }>;
+  totalRevenue?: number;
+  totalSales?: number;
 }
 
 export function AccountingClient({
@@ -55,6 +63,9 @@ export function AccountingClient({
   expenses,
   payments,
   transactions,
+  hourlyData = [],
+  totalRevenue = 0,
+  totalSales = 0,
 }: AccountingClientProps) {
   const chartData = weeklyData.map((d) => ({
     ...d,
@@ -66,6 +77,13 @@ export function AccountingClient({
 
   return (
     <div className="space-y-6">
+      {/* KPI Charts */}
+      <KPIChart
+        initialData={hourlyData}
+        totalRevenue={totalRevenue}
+        totalSales={totalSales}
+      />
+
       <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-200">
         Mode lecture seule — les transactions originales ne peuvent pas être modifiées.
       </div>

@@ -7,6 +7,7 @@ import {
 } from "@/services/dashboard.service";
 import { getExpenses, getBarberPayments } from "@/services/barber.service";
 import { getTransactions } from "@/services/transaction.service";
+import { generateHourlyData } from "@/lib/utils/hourly-data";
 
 export default async function AccountingPage() {
   const profile = await requireAuth(["ADMIN", "COMPTABLE"]);
@@ -21,6 +22,10 @@ export default async function AccountingPage() {
       getTransactions({ limit: 50 }),
     ]);
 
+  const totalRevenue = stats.totalRevenueToday || 0;
+  const totalSales = stats.transactionCount + stats.storeSaleCount;
+  const hourlyData = generateHourlyData(totalRevenue, totalSales);
+
   return (
     <AppShell
       profile={profile}
@@ -34,6 +39,9 @@ export default async function AccountingPage() {
         expenses={expenses}
         payments={payments}
         transactions={transactions}
+        hourlyData={hourlyData}
+        totalRevenue={totalRevenue}
+        totalSales={totalSales}
       />
     </AppShell>
   );

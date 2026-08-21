@@ -62,9 +62,15 @@ function addReceiptFooter(doc: jsPDF, startY: number) {
   doc.text("MC a votre service. — " + formatDateTime(new Date()).split(" ")[0], pageWidth / 2, startY + 14, { align: "center" });
 }
 
+function createThermalReceiptDoc() {
+  return new jsPDF({
+    unit: "mm",
+    format: [58, 200],
+  });
+}
+
 export function generateReceiptPDF(transaction: Transaction): jsPDF {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
+  const doc = createThermalReceiptDoc();
   const serviceName = transaction.service_name || transaction.service?.name || "—";
   const originalPrice =
     transaction.original_price ?? transaction.amount + (transaction.discount_amount ?? 0);
@@ -75,9 +81,6 @@ export function generateReceiptPDF(transaction: Transaction): jsPDF {
   addReceiptHeader(doc, "Reçu de paiement - Barber");
 
   doc.setTextColor(TEXT_DARK.r, TEXT_DARK.g, TEXT_DARK.b);
-  doc.setFontSize(11);
-
-  doc.setTextColor(0, 0, 0);
   doc.setFontSize(11);
 
   const rows: string[][] = [
@@ -103,21 +106,20 @@ export function generateReceiptPDF(transaction: Transaction): jsPDF {
     startY: 45,
     body: rows,
     theme: "plain",
-    styles: { fontSize: 10, cellPadding: 4 },
-    columnStyles: { 0: { fontStyle: "bold", textColor: [TEXT_GRAY.r, TEXT_GRAY.g, TEXT_GRAY.b] } },
-    margin: { left: 20, right: 20 },
+    styles: { fontSize: 8, cellPadding: 2 },
+    columnStyles: { 0: { fontStyle: "bold", textColor: [TEXT_GRAY.r, TEXT_GRAY.g, TEXT_GRAY.b], cellWidth: 18 } },
+    margin: { left: 5, right: 5 },
   });
 
   const last = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable;
-  const finalY = (last?.finalY ?? doc.internal.pageSize.getHeight() - 40) + 15;
+  const finalY = (last?.finalY ?? 90) + 10;
   addReceiptFooter(doc, finalY);
 
   return doc;
 }
 
 export function generateStoreReceiptPDF(sale: StoreSale): jsPDF {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
+  const doc = createThermalReceiptDoc();
   const date = sale.created_at ? new Date(sale.created_at) : new Date();
   const receiptNumber = (sale.receipt_number || "").toString();
 
@@ -145,9 +147,9 @@ export function generateStoreReceiptPDF(sale: StoreSale): jsPDF {
     startY: 45,
     body: rows,
     theme: "plain",
-    styles: { fontSize: 10, cellPadding: 4 },
-    columnStyles: { 0: { fontStyle: "bold", textColor: [TEXT_GRAY.r, TEXT_GRAY.g, TEXT_GRAY.b] } },
-    margin: { left: 20, right: 20 },
+    styles: { fontSize: 8, cellPadding: 2 },
+    columnStyles: { 0: { fontStyle: "bold", textColor: [TEXT_GRAY.r, TEXT_GRAY.g, TEXT_GRAY.b], cellWidth: 18 } },
+    margin: { left: 5, right: 5 },
   });
 
   const itemRows = (sale.items ?? []).map((item) => [
@@ -169,14 +171,14 @@ export function generateStoreReceiptPDF(sale: StoreSale): jsPDF {
       fillColor: [TEXT_DARK.r, TEXT_DARK.g, TEXT_DARK.b],
       textColor: [BRAND_COLOR.r, BRAND_COLOR.g, BRAND_COLOR.b],
       fontStyle: "bold",
-      fontSize: 9,
+      fontSize: 7,
     },
-    styles: { fontSize: 9, cellPadding: 3 },
-    margin: { left: 15, right: 15 },
+    styles: { fontSize: 7, cellPadding: 2 },
+    margin: { left: 3, right: 3 },
   });
 
   const final = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable;
-  const finalY = (final?.finalY ?? pageWidth - 40) + 20;
+  const finalY = (final?.finalY ?? 90) + 12;
   addReceiptFooter(doc, finalY);
 
   return doc;

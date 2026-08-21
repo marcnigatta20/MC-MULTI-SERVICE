@@ -3,6 +3,8 @@ import { AppShell, requireAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StoreDashboardClient } from "@/components/store/store-dashboard-client";
+import { KPIChart } from "@/components/dashboard/kpi-chart";
+import { generateHourlyData } from "@/lib/utils/hourly-data";
 import {
   getStoreDashboardStats,
   getTopSellingProducts,
@@ -19,6 +21,10 @@ export default async function StoreDashboardPage() {
     getStoreSales({ limit: 6 }),
     getLowStockProducts(),
   ]);
+
+  const totalRevenue = stats.revenueToday || 0;
+  const totalSales = stats.productsSoldToday || 0;
+  const hourlyData = generateHourlyData(totalRevenue, totalSales);
 
   return (
     <AppShell
@@ -47,11 +53,15 @@ export default async function StoreDashboardPage() {
             </Link>
           )}
         </div>
-        {(profile.role === "ADMIN" || profile.role === "CAISSIERE") && (
-          <Link href="/dashboard/store/sales/new">
-            <Button>Nouvelle vente</Button>
-          </Link>
-        )}
+      </div>
+
+      {/* KPI Charts */}
+      <div className="mb-6">
+        <KPIChart
+          initialData={hourlyData}
+          totalRevenue={totalRevenue}
+          totalSales={totalSales}
+        />
       </div>
 
       <StoreDashboardClient

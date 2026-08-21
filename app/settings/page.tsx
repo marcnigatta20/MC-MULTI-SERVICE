@@ -2,6 +2,7 @@ import { AppShell, requireAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProfilePhotoEditor } from "@/components/profile/profile-photo-editor";
+import { ClockSettings } from "@/components/settings/clock-settings";
 
 export default async function SettingsPage() {
   const profile = await requireAuth(["ADMIN"]);
@@ -76,6 +77,8 @@ export default async function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ClockSettings />
       </div>
     </AppShell>
   );

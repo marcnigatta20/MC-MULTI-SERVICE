@@ -4,6 +4,8 @@ import { TransactionsClient } from "@/components/transactions/transactions-clien
 import { getFilterOptions } from "@/services/transaction.service";
 import { getTodayISO } from "@/lib/utils";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { KPIChart } from "@/components/dashboard/kpi-chart";
+import { generateHourlyData } from "@/lib/utils/hourly-data";
 import { DollarSign, Receipt } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,7 @@ export default async function CashierDashboardPage() {
 
   const activeTx = todayTx.filter((t) => t.status === "ACTIVE");
   const todayTotal = activeTx.reduce((s, t) => s + Number(t.amount), 0);
+  const hourlyData = generateHourlyData(todayTotal, activeTx.length);
 
   return (
     <AppShell profile={profile} title="Dashboard" subtitle="Votre activité du jour">
@@ -29,6 +32,14 @@ export default async function CashierDashboardPage() {
             <Button size="lg"><Plus className="h-4 w-4" /> Nouvelle vente</Button>
           </Link>
         </div>
+
+        {/* KPI Charts */}
+        <KPIChart
+          initialData={hourlyData}
+          totalRevenue={todayTotal}
+          totalSales={activeTx.length}
+        />
+
         <div className="grid gap-4 sm:grid-cols-2">
           <StatCard title="Ventes aujourd'hui" value={todayTotal} icon={DollarSign} variant="gold" />
           <StatCard title="Transactions" value={activeTx.length} icon={Receipt} isCurrency={false} />

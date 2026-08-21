@@ -29,6 +29,35 @@ function matchesSource(eventSource: string | undefined, allowed?: RealtimeSource
   return allowed === eventSource;
 }
 
+function resolveRealtimeTables(source?: RealtimeSource, tableName?: string): string[] {
+  const explicitTables = tableName ? [tableName] : [];
+  if (explicitTables.length > 0) return explicitTables;
+
+  const sourceValues = Array.isArray(source) ? source : source ? [source] : [];
+  const tableMap: Record<string, string[]> = {
+    transaction: ["transactions"],
+    transaction_cancelled: ["transactions"],
+    store_sale: ["store_sales"],
+    store_sale_cancelled: ["store_sales"],
+    sales: ["transactions", "store_sales"],
+    product: ["products"],
+    products: ["products"],
+    stock: ["products"],
+    notification: [],
+    notifications: [],
+    "store_notification": [],
+    "store_notifications": [],
+  };
+
+  const resolved = sourceValues.flatMap((value) => {
+    if (!value) return [];
+    const mapped = tableMap[value.toLowerCase()];
+    return mapped && mapped.length > 0 ? mapped : [value];
+  });
+
+  return Array.from(new Set(resolved));
+}
+
 function getRowId<T extends RealtimeTableRow>(row: T | null | undefined, idKey: string) {
   if (!row || typeof row !== "object") return undefined;
 
@@ -166,9 +195,7 @@ export function useRealtimeTable<T extends RealtimeTableRow>(
     const tablesToWatch =
       normalizedTables.length > 0
         ? normalizedTables
-        : normalizedOptions.tableName
-          ? [normalizedOptions.tableName]
-          : [];
+        : resolveRealtimeTables(normalizedOptions.source, normalizedOptions.tableName);
 
     if (tablesToWatch.length === 0) return;
 

@@ -19,7 +19,7 @@ export default async function ReportsPage({ searchParams }: PageProps) {
 
   const [reportData, monthlyEvolution] = await Promise.all([
     getReportData(period, params.from, params.to, reportType),
-    getMonthlyEvolution(6),
+    getMonthlyEvolution(6, reportType),
   ]);
 
   return (

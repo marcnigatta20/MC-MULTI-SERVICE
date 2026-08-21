@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BarChart,
   Bar,
@@ -19,15 +20,9 @@ import { Button } from "@/components/ui/button";
 import { StockBadge } from "@/components/store/stock-badge";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { STORE_SALE_STATUS_LABELS, type StoreDashboardStats, type StoreSale, type Product } from "@/types";
-import { AlertTriangle, ShoppingCart, BellRing } from "lucide-react";
+import { AlertTriangle, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
-import {
-  getStoreNotificationMessages,
-  readStoreNotificationSummary,
-  summarizeStoreNotifications,
-  writeStoreNotificationSummary,
-  type StoreNotificationSummary,
-} from "@/lib/notifications";
+import { useRealtimeTable } from "@/lib/hooks/use-realtime-table";
 
 interface StoreDashboardClientProps {
   stats: StoreDashboardStats;
@@ -46,36 +41,41 @@ export function StoreDashboardClient({
   lowStock,
   canSell,
 }: StoreDashboardClientProps) {
+  const router = useRouter();
+  const [isLive, setIsLive] = useState(false);
+  useRealtimeTable({
+    source: ["store_sale", "store_sale_cancelled"],
+    refreshOnChange: true,
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleSync = (event: Event) => {
+      const customEvent = event as CustomEvent<{ source?: string }>;
+      if (customEvent.detail?.source && !customEvent.detail.source.includes("store")) {
+        return;
+      }
+      setIsLive(true);
+      const timeout = window.setTimeout(() => setIsLive(false), 1200);
+      return () => window.clearTimeout(timeout);
+    };
+
+    window.addEventListener("mc-live-sync", handleSync);
+    window.addEventListener("storage", handleSync as EventListener);
+
+    return () => {
+      window.removeEventListener("mc-live-sync", handleSync);
+      window.removeEventListener("storage", handleSync as EventListener);
+    };
+  }, []);
+
   const chartData = weeklyData.map((d) => ({
     ...d,
     label: new Date(d.date).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }),
   }));
 
-  const [persistedSummary, setPersistedSummary] = useState<StoreNotificationSummary | null>(null);
-
   useEffect(() => {
-    setPersistedSummary(readStoreNotificationSummary());
-  }, []);
-
-  const liveSummary = useMemo(
-    () => summarizeStoreNotifications(recentSales.length, lowStock),
-    [recentSales.length, lowStock]
-  );
-
-  const effectiveSummary = persistedSummary && persistedSummary.updatedAt > liveSummary.updatedAt ? persistedSummary : liveSummary;
-  const notifications = useMemo(() => getStoreNotificationMessages(effectiveSummary), [effectiveSummary]);
-
-  useEffect(() => {
-    if (!liveSummary) return;
-
-    writeStoreNotificationSummary(liveSummary);
-    setPersistedSummary((current) => {
-      if (current && current.updatedAt >= liveSummary.updatedAt) {
-        return current;
-      }
-      return liveSummary;
-    });
-
     if (lowStock.length > 0) {
       const hasLowStockAlert = sessionStorage.getItem("mc-store-low-stock-alert") !== "shown";
       if (hasLowStockAlert) {
@@ -83,39 +83,39 @@ export function StoreDashboardClient({
         toast.warning(`Stock faible : ${lowStock.slice(0, 2).map((p) => p.name).join(", ")}`);
       }
     }
-  }, [liveSummary, lowStock]);
+  }, [lowStock]);
 
   return (
     <div className="space-y-6">
-      {notifications.length > 0 && (
-        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-amber-50">
-          <div className="mb-2 flex items-center gap-2 font-medium">
-            <BellRing className="h-4 w-4" />
-            Notifications
-          </div>
-          <ul className="space-y-1 text-sm text-amber-100/90">
-            {notifications.map((message) => (
-              <li key={message}>• {message}</li>
-            ))}
-          </ul>
-        </div>
-      )}
       {canSell && (
         <div className="flex justify-end">
-          <Link href="/dashboard/store/sales/new">
-            <Button size="lg" className="gap-2">
-              <ShoppingCart className="h-5 w-5" />
-              Nouvelle vente
-            </Button>
-          </Link>
+          <Button
+            size="lg"
+            className="gap-2"
+            onClick={() => router.push("/dashboard/store/sales/new")}
+          >
+            <ShoppingCart className="h-5 w-5" />
+            Nouvelle vente
+          </Button>
         </div>
       )}
 
       <StoreStats stats={stats} />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle>Évolution des ventes — 7 jours</CardTitle></CardHeader>
+        <Card className={[
+          "min-w-0",
+          "transition-all duration-500",
+          isLive ? "ring-1 ring-gold/30 shadow-[0_0_16px_rgba(212,175,55,0.12)]" : "",
+        ].join(" ")}>
+          <CardHeader className="flex items-center justify-between gap-3">
+            <CardTitle>Évolution des ventes — 7 jours</CardTitle>
+            {isLive && (
+              <span className="inline-flex items-center rounded-full border border-gold/40 bg-gold/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold animate-pulse">
+                LIVE
+              </span>
+            )}
+          </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={chartData}>
@@ -132,7 +132,7 @@ export function StoreDashboardClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader><CardTitle>Produits les plus vendus</CardTitle></CardHeader>
           <CardContent>
             {topProducts.length === 0 ? (
@@ -162,10 +162,21 @@ export function StoreDashboardClient({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-400" />
-            <CardTitle>Alertes stock</CardTitle>
+        <Card className={[
+          "min-w-0",
+          "transition-all duration-500",
+          isLive ? "ring-1 ring-amber-400/30 shadow-[0_0_16px_rgba(251,191,36,0.12)]" : "",
+        ].join(" ")}>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              <CardTitle>Alertes stock</CardTitle>
+            </div>
+            {isLive && (
+              <span className="inline-flex items-center rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300 animate-pulse">
+                LIVE
+              </span>
+            )}
           </CardHeader>
           <CardContent>
             {lowStock.length === 0 ? (
@@ -195,8 +206,19 @@ export function StoreDashboardClient({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle>Ventes récentes</CardTitle></CardHeader>
+        <Card className={[
+          "min-w-0",
+          "transition-all duration-500",
+          isLive ? "ring-1 ring-emerald-400/30 shadow-[0_0_16px_rgba(16,185,129,0.12)]" : "",
+        ].join(" ")}>
+          <CardHeader className="flex items-center justify-between gap-3">
+            <CardTitle>Ventes récentes</CardTitle>
+            {isLive && (
+              <span className="inline-flex items-center rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300 animate-pulse">
+                LIVE
+              </span>
+            )}
+          </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>

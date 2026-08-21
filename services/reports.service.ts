@@ -64,6 +64,7 @@ export async function getReportData(
     { data: expenses },
     { data: barberPayments },
     { data: balances },
+    { data: storeSales },
   ] = await Promise.all([
     supabase
       .from("transactions")
@@ -82,23 +83,40 @@ export async function getReportData(
       .gte("payment_date", from)
       .lte("payment_date", to),
     supabase.from("barber_balances").select("balance_due"),
+    supabase
+      .from("store_sales")
+      .select("total_amount, created_at, items:store_sale_items(profit, quantity)")
+      .eq("status", "VALIDEE")
+      .gte("created_at", `${from}T00:00:00.000Z`)
+      .lte("created_at", `${to}T23:59:59.999Z`),
   ]);
 
-  const revenue = transactions?.reduce((s, t) => s + Number(t.amount), 0) || 0;
-  const commissions =
-    transactions?.reduce((s, t) => s + Number(t.commission_amount), 0) || 0;
-  const shopShare =
-    transactions?.reduce((s, t) => s + Number(t.shop_amount), 0) || 0;
+  const barberRevenue = transactions?.reduce((s, t) => s + Number(t.amount), 0) || 0;
+  const commissions = transactions?.reduce((s, t) => s + Number(t.commission_amount), 0) || 0;
+  const shopShare = transactions?.reduce((s, t) => s + Number(t.shop_amount), 0) || 0;
   const totalExpenses = expenses?.reduce((s, e) => s + Number(e.amount), 0) || 0;
-  const barberPaymentsTotal =
-    barberPayments?.reduce((s, p) => s + Number(p.amount), 0) || 0;
-  const barbersOwed =
-    balances?.reduce((s, b) => s + Number(b.balance_due), 0) || 0;
+  const barberPaymentsTotal = barberPayments?.reduce((s, p) => s + Number(p.amount), 0) || 0;
+  const barbersOwed = balances?.reduce((s, b) => s + Number(b.balance_due), 0) || 0;
+
+  const storeRevenue = storeSales?.reduce((s, sale) => s + Number(sale.total_amount), 0) || 0;
+  const storeProfit =
+    storeSales?.reduce((sum, sale) => {
+      const items = sale.items as Array<{ profit?: number }> | null;
+      return sum + (items?.reduce((itemTotal, item) => itemTotal + Number(item.profit ?? 0), 0) || 0);
+    }, 0) || 0;
+
+  const revenue = reportType === "store" ? storeRevenue : barberRevenue;
+  const effectiveShopShare = reportType === "store" ? storeRevenue : shopShare;
+  const effectiveNetProfit = reportType === "store" ? storeProfit - totalExpenses : shopShare - totalExpenses;
 
   const revenueByDay = new Map<string, number>();
-  transactions?.forEach((t) => {
-    const d = t.transaction_date;
-    revenueByDay.set(d, (revenueByDay.get(d) || 0) + Number(t.amount));
+  const baseRevenueEntries = reportType === "store"
+    ? (storeSales ?? []).map((sale) => ({ date: sale.created_at?.slice(0, 10) ?? from, amount: Number(sale.total_amount) }))
+    : (transactions ?? []).map((t) => ({ date: t.transaction_date, amount: Number(t.amount) }));
+
+  baseRevenueEntries.forEach((entry) => {
+    const d = entry.date;
+    revenueByDay.set(d, (revenueByDay.get(d) || 0) + Number(entry.amount));
   });
 
   const revenueByBarber = new Map<string, { name: string; revenue: number; commissions: number }>();
@@ -122,7 +140,7 @@ export async function getReportData(
 
   const dailyChart = Array.from(revenueByDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, revenue]) => ({ date, revenue }));
+    .map(([date, revenueValue]) => ({ date, revenue: revenueValue }));
 
   const barberChart = Array.from(revenueByBarber.values())
     .sort((a, b) => b.revenue - a.revenue);
@@ -136,13 +154,13 @@ export async function getReportData(
     period: { from, to },
     summary: {
       revenue,
-      commissions,
-      shopShare,
+      commissions: reportType === "store" ? 0 : commissions,
+      shopShare: effectiveShopShare,
       expenses: totalExpenses,
-      netProfit: shopShare - totalExpenses,
+      netProfit: effectiveNetProfit,
       barberPayments: barberPaymentsTotal,
       barbersOwed,
-      transactionCount: transactions?.length || 0,
+      transactionCount: reportType === "store" ? (storeSales?.length || 0) : (transactions?.length || 0),
     },
     dailyChart,
     barberChart,
@@ -150,7 +168,7 @@ export async function getReportData(
   };
 }
 
-export async function getMonthlyEvolution(months = 6) {
+export async function getMonthlyEvolution(months = 6, reportType: ReportType = "store") {
   const supabase = await createClient();
   const data: { month: string; revenue: number; expenses: number }[] = [];
 
@@ -161,7 +179,7 @@ export async function getMonthlyEvolution(months = 6) {
     const to = toLocalDateISO(new Date(d.getFullYear(), d.getMonth() + 1, 0));
     const label = d.toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
 
-    const [{ data: txs }, { data: exps }] = await Promise.all([
+    const [{ data: txs }, { data: exps }, { data: storeSales }] = await Promise.all([
       supabase
         .from("transactions")
         .select("amount")
@@ -173,11 +191,20 @@ export async function getMonthlyEvolution(months = 6) {
         .select("amount")
         .gte("expense_date", from)
         .lte("expense_date", to),
+      supabase
+        .from("store_sales")
+        .select("total_amount")
+        .eq("status", "VALIDEE")
+        .gte("created_at", `${from}T00:00:00.000Z`)
+        .lte("created_at", `${to}T23:59:59.999Z`),
     ]);
+
+    const barberRevenue = txs?.reduce((s, t) => s + Number(t.amount), 0) || 0;
+    const storeRevenue = storeSales?.reduce((s, sale) => s + Number(sale.total_amount), 0) || 0;
 
     data.push({
       month: label,
-      revenue: txs?.reduce((s, t) => s + Number(t.amount), 0) || 0,
+      revenue: reportType === "store" ? barberRevenue + storeRevenue : barberRevenue,
       expenses: exps?.reduce((s, e) => s + Number(e.amount), 0) || 0,
     });
   }

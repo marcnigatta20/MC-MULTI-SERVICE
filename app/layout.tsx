@@ -35,7 +35,7 @@ export function generateViewport() {
     viewportFit: "cover",
     maximumScale: 1,
     themeColor: "#0a0a0a",
-    colorScheme: "dark",
+    colorScheme: "dark light",
   };
 }
 
@@ -45,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${inter.variable} h-full antialiased`}>
+    <html lang="fr" className={`${inter.variable} h-full antialiased dark`}>
       <body className="min-h-full bg-black text-white [padding-bottom:env(safe-area-inset-bottom)] [padding-top:env(safe-area-inset-top)]">
         {!isSupabaseConfigured() && <SetupBanner />}
         {children}

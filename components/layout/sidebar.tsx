@@ -24,6 +24,8 @@ import {
   ShoppingBag,
   Bell,
   Pencil,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
@@ -96,18 +98,26 @@ function SidebarNav({
   pathname,
   profile,
   onNavigate,
-  storeAlertCount,
 }: {
   filteredNav: NavItem[];
   pathname: string;
   profile: Profile;
   onNavigate: () => void;
-  storeAlertCount: number;
 }) {
+  async function handleLogoClick() {
+    await signOut();
+  }
+
   return (
     <>
       <div className="border-b border-zinc-800 p-6">
-        <Logo />
+        <button
+          onClick={handleLogoClick}
+          className="w-full text-left transition-opacity hover:opacity-80 active:opacity-60"
+          title="Cliquer pour vous déconnecter"
+        >
+          <Logo />
+        </button>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
         {filteredNav.map((item) => {
@@ -115,7 +125,6 @@ function SidebarNav({
             pathname === item.href ||
             (!ROOT_PATHS.includes(item.href) && pathname.startsWith(`${item.href}/`)) ||
             (item.href === "/barber" && pathname === "/barber");
-          const showAlertBadge = item.href === "/dashboard/store" && storeAlertCount > 0;
 
           return (
             <Link
@@ -131,11 +140,6 @@ function SidebarNav({
             >
               <item.icon className="h-4 w-4 shrink-0" />
               <span className="flex-1">{item.label}</span>
-              {showAlertBadge && (
-                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                  {storeAlertCount}
-                </span>
-              )}
             </Link>
           );
         })}
@@ -153,32 +157,6 @@ function SidebarNav({
 export function Sidebar({ profile }: { profile: Profile }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [storeAlertCount, setStoreAlertCount] = useState(0);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const updateAlertCount = () => {
-      try {
-        const raw = window.localStorage.getItem(STORE_NOTIFICATION_STORAGE_KEY);
-        if (!raw) {
-          setStoreAlertCount(0);
-          return;
-        }
-
-        const parsed = JSON.parse(raw) as { lowStockCount?: number; recentSalesCount?: number };
-        const lowStockCount = profile.role === "ADMIN" || profile.role === "CAISSIERE" ? (parsed.lowStockCount ?? 0) : 0;
-        const recentSalesCount = profile.role === "ADMIN" ? (parsed.recentSalesCount ?? 0) : 0;
-        setStoreAlertCount(lowStockCount + recentSalesCount);
-      } catch {
-        setStoreAlertCount(0);
-      }
-    };
-
-    updateAlertCount();
-    window.addEventListener("storage", updateAlertCount);
-    return () => window.removeEventListener("storage", updateAlertCount);
-  }, []);
 
   const filteredNav = NAV_ITEMS.filter((item) =>
     item.roles.includes(profile.role)
@@ -210,7 +188,6 @@ export function Sidebar({ profile }: { profile: Profile }) {
           pathname={pathname}
           profile={profile}
           onNavigate={() => setMobileOpen(false)}
-          storeAlertCount={storeAlertCount}
         />
       </aside>
     </>
@@ -224,13 +201,86 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [notificationFilter, setNotificationFilter] = useState<"all" | "sale" | "stock">("all");
   const [notificationItems, setNotificationItems] = useState<NotificationItem[]>([]);
+  const [currentTime, setCurrentTime] = useState<string>("");
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isLive, setIsLive] = useState(false);
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const savedTheme = window.localStorage.getItem("mc-theme") ?? "dark";
+    const isDark = savedTheme === "dark";
+    setIsDarkMode(isDark);
+
+    if (isDark) {
+      document.documentElement.classList.remove("light");
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDarkMode((prev) => {
+      const newIsDark = !prev;
+      const newTheme = newIsDark ? "dark" : "light";
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("mc-theme", newTheme);
+        document.documentElement.classList.toggle("dark", newIsDark);
+        document.documentElement.classList.toggle("light", !newIsDark);
+      }
+      return newIsDark;
+    });
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleLiveSync = (event: Event) => {
+      const customEvent = event as CustomEvent<{ source?: string }>; 
+      const source = customEvent.detail?.source ?? "";
+      if (source && !source.includes("store") && !source.includes("transaction")) {
+        return;
+      }
+      setIsLive(true);
+      const timer = window.setTimeout(() => setIsLive(false), 1200);
+      return () => window.clearTimeout(timer);
+    };
+
+    window.addEventListener("mc-live-sync", handleLiveSync);
+    window.addEventListener("storage", handleLiveSync as EventListener);
+
+    return () => {
+      window.removeEventListener("mc-live-sync", handleLiveSync);
+      window.removeEventListener("storage", handleLiveSync as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const closeMenus = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
-      if (!target || target.closest("[data-profile-menu-button]") || target.closest("[data-notification-menu-button]")) {
+      if (!target) return;
+
+      if (
+        target.closest("[data-profile-menu-button]") ||
+        target.closest("[data-notification-menu-button]") ||
+        target.closest("[data-profile-menu]") ||
+        target.closest("[data-notification-menu]")
+      ) {
         return;
       }
 
@@ -297,13 +347,24 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
       }
     };
 
+    const handleLiveSync = (event: Event) => {
+      const customEvent = event as CustomEvent<{ source?: string }>;
+      if (customEvent.detail?.source && !customEvent.detail.source.includes("store")) {
+        return;
+      }
+      updateNotificationCount();
+      updateNotificationItems();
+    };
+
     updateNotificationCount();
     updateNotificationItems();
     window.addEventListener("storage", updateNotificationCount);
     window.addEventListener("storage", updateNotificationItems);
+    window.addEventListener("mc-live-sync", handleLiveSync);
     return () => {
       window.removeEventListener("storage", updateNotificationCount);
       window.removeEventListener("storage", updateNotificationItems);
+      window.removeEventListener("mc-live-sync", handleLiveSync);
     };
   }, [currentRole]);
 
@@ -338,6 +399,21 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
 
         {profile && (
           <div className="flex items-center gap-2 sm:gap-3">
+            <div className="text-xs sm:text-sm text-zinc-400 font-medium">{currentTime}</div>
+            
+            <button
+              onClick={toggleTheme}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-200 transition hover:border-gold/60 hover:text-gold sm:h-10 sm:w-10"
+              aria-label={isDarkMode ? "Passer au mode clair" : "Passer au mode nuit"}
+              title={isDarkMode ? "Mode clair" : "Mode nuit"}
+            >
+              {isDarkMode ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </button>
+
             <div className="relative">
               <button
                 type="button"
@@ -358,7 +434,12 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
               </button>
 
               {showProfileMenu && (
-                <div className="absolute right-0 top-12 z-50 w-44 rounded-xl border border-zinc-800 bg-zinc-950 p-2 shadow-2xl sm:w-52">
+                <div
+                  data-profile-menu="true"
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
+                  className="absolute right-0 top-12 z-50 w-44 rounded-xl border border-zinc-800 bg-zinc-950 p-2 shadow-2xl sm:w-52"
+                >
                   <Link
                     href={profile.role === "BARBER" ? "/barber/profile" : "/settings"}
                     onClick={() => setShowProfileMenu(false)}
@@ -368,8 +449,13 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
                     Modifier le profil
                   </Link>
 
-                  <form action={signOut} className="mt-1 border-t border-zinc-800 pt-2">
-                    <Button type="submit" variant="ghost" className="w-full justify-start px-2 py-2 text-sm text-zinc-200 hover:bg-zinc-800 hover:text-white">
+                  <form action={signOut} className="mt-1 border-t border-zinc-800 pt-2" onSubmit={() => setShowProfileMenu(false)}>
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      formAction={signOut}
+                      className="w-full justify-start px-2 py-2 text-sm text-zinc-200 hover:bg-zinc-800 hover:text-white"
+                    >
                       <LogOut className="mr-2 h-4 w-4 text-gold" />
                       Déconnexion
                     </Button>
@@ -386,7 +472,10 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
                   setShowProfileMenu(false);
                   setShowNotifications((value) => !value);
                 }}
-                className="relative flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-200 transition hover:border-gold/60 hover:text-gold sm:h-10 sm:w-10"
+                className={[
+                  "relative flex h-9 w-9 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-200 transition hover:border-gold/60 hover:text-gold sm:h-10 sm:w-10",
+                  isLive ? "animate-pulse ring-2 ring-red-400/70" : "",
+                ].join(" ")}
                 aria-label="Notifications"
               >
                 <Bell className="h-4 w-4" />
@@ -398,7 +487,12 @@ export function Topbar({ title, subtitle, profile }: { title: string; subtitle?:
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 top-12 z-50 w-72 rounded-xl border border-zinc-800 bg-zinc-950 p-3 shadow-2xl sm:w-80">
+                <div
+                  data-notification-menu="true"
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
+                  className="absolute right-0 top-12 z-50 w-72 rounded-xl border border-zinc-800 bg-zinc-950 p-3 shadow-2xl sm:w-80"
+                >
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm font-medium text-white">{notificationTitle}</p>
                     {unreadCount > 0 && (

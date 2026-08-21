@@ -73,6 +73,16 @@ export function playNotificationTone() {
   }
 }
 
+function emitNotificationSync(source: string) {
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(new CustomEvent("mc-live-sync", { detail: { source } }));
+  window.dispatchEvent(new StorageEvent("storage", {
+    key: STORE_NOTIFICATION_STORAGE_KEY,
+    newValue: window.localStorage.getItem(STORE_NOTIFICATION_STORAGE_KEY),
+  }));
+}
+
 export function notifyStoreSaleCreated() {
   if (typeof window === "undefined") return;
 
@@ -81,7 +91,7 @@ export function notifyStoreSaleCreated() {
     const current = raw ? (JSON.parse(raw) as StoreNotificationSummary) : null;
     const next = mergeStoreSaleNotification(current, 1);
     window.localStorage.setItem(STORE_NOTIFICATION_STORAGE_KEY, JSON.stringify(next));
-    window.dispatchEvent(new StorageEvent("storage", { key: STORE_NOTIFICATION_STORAGE_KEY, newValue: JSON.stringify(next) }));
+    emitNotificationSync("store_sale");
     playNotificationTone();
   } catch {
     // Ignore storage issues silently.
@@ -107,6 +117,7 @@ export function writeStoreNotificationSummary(summary: StoreNotificationSummary)
 
   try {
     window.localStorage.setItem(STORE_NOTIFICATION_STORAGE_KEY, JSON.stringify(summary));
+    emitNotificationSync("store_summary");
   } catch {
     // Ignore storage issues silently.
   }
@@ -202,6 +213,7 @@ export function writeNotificationItems(items: NotificationItem[]) {
   try {
     window.localStorage.setItem(STORE_NOTIFICATION_HISTORY_KEY, JSON.stringify(items));
     window.localStorage.setItem(STORE_NOTIFICATION_READ_KEY, JSON.stringify(items));
+    emitNotificationSync("store_notifications");
   } catch {
     // Ignore storage issues silently.
   }

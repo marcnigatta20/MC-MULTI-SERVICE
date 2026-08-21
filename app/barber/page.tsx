@@ -3,6 +3,8 @@ import { getBarberByUserId, getBarberPayments } from "@/services/barber.service"
 import { getTransactions } from "@/services/transaction.service";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { KPIChart } from "@/components/dashboard/kpi-chart";
+import { generateHourlyData } from "@/lib/utils/hourly-data";
 import { DollarSign, Percent, Wallet, Receipt } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -44,6 +46,7 @@ export default async function BarberPage() {
 
   const todayRevenue = todayTransactions.reduce((s, t) => s + Number(t.amount), 0);
   const todayCommission = todayTransactions.reduce((s, t) => s + Number(t.commission_amount), 0);
+  const hourlyData = generateHourlyData(todayRevenue, todayTransactions.length);
 
   return (
     <AppShell
@@ -52,6 +55,13 @@ export default async function BarberPage() {
       subtitle="Votre espace personnel"
     >
       <div className="space-y-6">
+        {/* KPI Charts */}
+        <KPIChart
+          initialData={hourlyData}
+          totalRevenue={todayRevenue}
+          totalSales={todayTransactions.length}
+        />
+
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard title="CA aujourd'hui" value={todayRevenue} icon={DollarSign} variant="gold" />
           <StatCard title="Commission aujourd'hui" value={todayCommission} icon={Percent} />
